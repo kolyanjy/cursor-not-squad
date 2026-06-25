@@ -1,0 +1,9 @@
+hike:
+  title: Go for a hike
+  description: Find a nearby trail and explore nature.
+  category: outdoor
+
+draw:
+  title: Draw something
+  description: Sketch whatever comes to mind for 20 minutes.
+  category: creative
