@@ -3,6 +3,7 @@ import type { SwipeCardItem } from '@/components/ui/tinder-like-swipe'
 import { MODEL, getAnthropic } from '@/api/anthropic'
 import type { ChatMessage } from '@/api/chat'
 import { ACTIVITIES_SYSTEM } from '@/api/prompts'
+import { ACTIVITY_ICON_NAMES, activityIcon } from '@/lib/activity-icons'
 
 /** Card gradients reused from the seed deck, cycled across generated cards. */
 const CARD_GRADIENTS = [
@@ -31,8 +32,9 @@ const ACTIVITIES_SCHEMA: Record<string, unknown> = {
         properties: {
           title: { type: 'string' },
           description: { type: 'string' },
+          icon: { type: 'string', enum: ACTIVITY_ICON_NAMES },
         },
-        required: ['title', 'description'],
+        required: ['title', 'description', 'icon'],
         additionalProperties: false,
       },
     },
@@ -44,6 +46,7 @@ const ACTIVITIES_SCHEMA: Record<string, unknown> = {
 interface RawActivity {
   title: string
   description: string
+  icon?: string
 }
 
 export interface GenerateActivitiesOptions {
@@ -84,6 +87,7 @@ export async function generateActivities(
     title: activity.title.trim(),
     description: activity.description.trim(),
     gradientClassName: CARD_GRADIENTS[index % CARD_GRADIENTS.length],
+    icon: activityIcon(activity.icon),
   }))
 }
 

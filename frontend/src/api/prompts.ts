@@ -20,6 +20,7 @@ export const ACTIVITIES_SYSTEM = `You are the activity engine behind TonightPick
 For each activity:
 - "title": 2 to 4 words, punchy and specific (e.g. "Late-Night Ramen", "Rooftop Jazz"). No trailing punctuation.
 - "description": ONE vivid, sensory sentence of at most ~90 characters — what it actually feels like, not a category label.
+- "icon": the single name from the allowed icon list that best represents the activity (e.g. ramen → "Soup", a bar crawl → "Martini", stargazing → "Telescope").
 
 Rules:
 - Make the 10 genuinely varied: mostly strong on-vibe picks, plus one or two playful wildcards. No duplicates or near-duplicates.
