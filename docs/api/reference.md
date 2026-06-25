@@ -137,3 +137,75 @@ See [Backend development](../development/backend.md) for the full workflow.
 - [Architecture overview](../architecture/overview.md)
 - [Backend development](../development/backend.md)
 - [Environment variables](../development/environment-variables.md)
+
+---
+
+## TonightPick event API
+
+These four endpoints power the TonightPick swipe product. The backend must implement them (or the frontend uses `VITE_USE_MOCK=true` to skip the network entirely).
+
+**Base URL (dev):** `http://localhost:3001` · **Content-Type:** `application/json`
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `POST` | `/events` | Create a new swipe session |
+| `GET` | `/events/:id/next` | Fetch the next activity card |
+| `POST` | `/events/:id/swipe` | Record a like or pass |
+| `GET` | `/events/:id/liked` | List all liked activities |
+
+### Activity type (TonightPick)
+
+```ts
+interface Activity {
+  id: string            // e.g. "act_bubble_tea_walk"
+  title: string
+  description: string
+  emoji?: string
+  tags: string[]        // e.g. ["Outdoor"]
+  budget: 'free' | 'low' | 'medium'   // display: free → "free", low → "$", medium → "$$"
+  duration: string      // e.g. "45 min"
+  score?: number        // 70–95 typical; shown on card
+  weatherBoost?: boolean  // true → show "Weather boost active"
+}
+```
+
+### `POST /events`
+
+Body: `{ "title": "Friday crew", "mood": "chill" }` (`title` required, `mood` optional).
+Response `201`: `{ "id": "evt_8f3k2m9x" }`
+
+### `GET /events/:id/next`
+
+Called on swipe page load **and on Again** (reroll — no swipe is recorded).
+Response `200`: `{ "activity": { ...Activity } }`
+`404` — event not found → redirect Home. `204` / empty — no more activities → navigate to Results.
+
+### `POST /events/:id/swipe`
+
+Body: `{ "activityId": "act_...", "action": "like" | "pass" }` (`like` = Tonight, `pass` = Nope).
+Response `200`: `{ "ok": true }`
+**Again does NOT call this endpoint** — it only calls `GET /next`.
+
+### `GET /events/:id/liked`
+
+Response `200`: `{ "activities": Activity[] }` — all Tonight picks for the event.
+
+### Typed client signatures
+
+```ts
+export type SwipeAction = 'like' | 'pass'
+
+createEvent(body: { title: string; mood?: string }): Promise<{ id: string }>
+getNextActivity(eventId: string): Promise<{ activity: Activity }>
+recordSwipe(eventId: string, body: { activityId: string; action: SwipeAction }): Promise<{ ok: boolean }>
+getLikedActivities(eventId: string): Promise<{ activities: Activity[] }>
+```
+
+### Error handling
+
+| Status | Meaning | Action |
+|--------|---------|--------|
+| 400 | Invalid body | Inline error |
+| 404 | Unknown event | Redirect Home |
+| 422 | Validation | Field errors |
+| 5xx | Server error | Retry CTA + toast |

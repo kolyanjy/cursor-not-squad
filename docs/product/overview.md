@@ -72,3 +72,35 @@ See [API reference](../api/reference.md) and [Architecture overview](../architec
 - [Architecture overview](../architecture/overview.md)
 - [API reference](../api/reference.md)
 - [UI specification](../design/ui-spec.md)
+
+---
+
+## TonightPick — hackathon product
+
+**TonightPick** is the product built on top of this starter. It turns the `activities` domain into a swipe-based decision helper: *Tinder for your evening — one swipe, one plan, no dashboard.*
+
+### Problem
+Decision fatigue after work. "What should we do tonight?" chat loops. Netflix scroll as default.
+
+### Core loop
+```
+Home (/)  →  Swipe (/event/:id/swipe)  →  Results (/event/:id/results)
+```
+Create an event with a title + optional mood → swipe cards (Nope / Tonight / Again) → pick a winner from liked list.
+
+### Scope
+
+**In (MVP)**
+- Mobile-first React SPA (dark + teal theme); 3 routes; typed API client or mock mode.
+- Card swipe with Nope / Tonight / Again actions; reroll limit (3, client-side).
+- Results screen with liked list and "Pick winner" CTA.
+
+**Out (MVP)**
+- Auth / accounts; real-time sync; admin dashboard; native apps.
+
+### Success metrics
+| Metric | Target |
+|--------|--------|
+| Time to first swipe | < 30 s |
+| Swipes per session | ≥ 5 |
+| Touch target compliance | 100% ≥ 48 px |

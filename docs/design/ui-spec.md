@@ -91,3 +91,66 @@ Primitives follow the shadcn "new-york" style (`components.json`); icons come fr
 - [Frontend development](../development/frontend.md)
 - [Product overview](../product/overview.md)
 - [Architecture overview](../architecture/overview.md)
+
+---
+
+## TonightPick UI
+
+### Design tokens
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `bg-app` | `#0a0a0f` (slate-950 gradient) | Page background |
+| `bg-card` | slate-900 / 800 | Card surface |
+| `accent-primary` | `#4FD1C5` (teal-400) | Tonight button, "TONIGHT MATCH" border |
+| `text-primary` | white | Main text |
+| `text-muted` | slate-400 | Secondary text |
+| Nope | red | Nope button + left-drag shadow |
+| Again | orange | Again button |
+
+### Layout
+
+Max width **~430 px** centered on desktop (no separate desktop layout). Cards use `rounded-3xl`. Min touch target **48×48 px**. iPhone safe-area padding via `env(safe-area-inset-*)`.
+
+### Home (`/`)
+
+Title input (required; placeholder "Friday crew") + optional mood chips (sent as `mood` on `POST /events`) + teal **Start** CTA → creates event → navigates to `/event/:id/swipe`. No nav bars.
+
+Mood chips (select one): **Chill · Active · Out · Cozy**
+
+### Swipe (`/event/:id/swipe`)
+
+```
+┌──────────────────────────────┐
+│ [TONIGHT MATCH]  3 rerolls   │  ← header row
+│                              │
+│  🧋 Grab bubble tea          │  ← huge bold title
+│     and walk 30 min          │
+│                              │
+│  Muted description text      │
+│                              │
+│  [Outdoor] [$] [~45 min]     │  ← tag-pills row
+│                              │
+│  ⛅ Weather boost    Score 82│  ← footer row (weatherBoost only if true)
+└──────────────────────────────┘
+
+   [✗ Nope]   [❤ Tonight]   [↺ Again]   ← fixed bottom bar
+    small        LARGE         small
+    red          teal          orange
+```
+
+Tag-pills order: `activity.tags`, then budget pill (`free`→"free", `low`→"$", `medium`→"$$"), then duration (prefix `~`).
+
+Card changes animate via a key on `activity.id` (horizontal slide + opacity).
+
+**Bottom action bar (fixed, safe-area aware):**
+
+| Button | Size | Icon | Action |
+|--------|------|------|--------|
+| Nope | small | red `X` | `POST /swipe { action:"pass" }` → next card |
+| Tonight | **large** (center) | teal `Heart` | `POST /swipe { action:"like" }` → next card |
+| Again | small | orange `RefreshCw` | `GET /next` only; decrement rerolls; disabled at 0 |
+
+### Results (`/event/:id/results`)
+
+`GET /events/:id/liked` → scrollable compact liked cards + teal **Pick winner** CTA (MVP: local highlight / confirm). Empty state + back-to-swipe link when no likes.

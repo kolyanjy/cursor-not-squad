@@ -161,3 +161,117 @@ export function fetchHealth(): Promise<HealthResponse> {
 - [Environment variables](environment-variables.md)
 - [Architecture overview](../architecture/overview.md)
 - [Backend development](backend.md)
+
+---
+
+## TonightPick additions
+
+The sections below describe what the TonightPick product adds on top of the landing-page baseline above.
+
+### Additional dependencies
+
+```bash
+npm install react-router-dom framer-motion
+```
+
+`framer-motion` is already present (`tinder-like-swipe.tsx`). `react-router-dom` must be added.
+
+### Routing
+
+`App.tsx` is replaced with a `RouterProvider` + three routes:
+
+```
+/                        → HomePage      (create event)
+/event/:id/swipe         → SwipePage     (swipe loop)
+/event/:id/results       → ResultsPage   (liked list + pick winner)
+```
+
+### Environment variables
+
+Set in `frontend/.env.local` (gitignored):
+
+```
+VITE_USE_MOCK=true
+VITE_API_URL=http://localhost:3001
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_URL` | `http://localhost:3001` | TonightPick API base URL |
+| `VITE_USE_MOCK` | `false` | `true` → in-app mock, no HTTP calls |
+
+`VITE_USE_MOCK=true` lets the frontend run without any backend. The mock rotates a static activity list in memory; swipe actions update in-memory liked state.
+
+### Extended project structure
+
+```
+frontend/src/
+├── main.tsx              # entry + RouterProvider
+├── App.tsx               # route definitions
+├── index.css             # Tailwind + design tokens
+├── pages/
+│   ├── HomePage.tsx      # event creation (title + mood chips + Start)
+│   ├── SwipePage.tsx     # card + Nope/Tonight/Again
+│   └── ResultsPage.tsx   # liked list + Pick winner
+├── components/
+│   ├── swipe/
+│   │   ├── ActivityCard.tsx    # card body (title, description, tag-pills)
+│   │   └── SwipeActionBar.tsx  # fixed bottom bar (Nope / Tonight / Again)
+│   └── ui/               # existing primitives
+├── api/
+│   ├── client.ts         # createEvent, getNextActivity, recordSwipe, getLikedActivities
+│   └── mock.ts           # in-memory mock adapter (same signatures)
+├── types/
+│   └── activity.ts       # Activity, Budget, SwipeAction
+└── hooks/
+    ├── useRerolls.ts      # reroll counter (default 3, decrements on Again only)
+    └── useActivityTransition.ts  # card key/animation helper
+```
+
+### Activity type
+
+```ts
+// src/types/activity.ts
+export type Budget = 'free' | 'low' | 'medium'
+export type SwipeAction = 'like' | 'pass'
+
+export interface Activity {
+  id: string
+  title: string
+  description: string
+  emoji?: string
+  tags: string[]
+  budget: Budget
+  duration: string
+  score?: number
+  weatherBoost?: boolean
+}
+```
+
+### Mock reference card
+
+```ts
+{
+  id: 'act_bubble_tea_walk',
+  title: 'Grab bubble tea and walk 30 min',
+  tags: ['Outdoor'],
+  budget: 'low',
+  duration: '45 min',
+  weatherBoost: true,
+  score: 82,
+}
+```
+
+### useRerolls hook
+
+```ts
+// default 3 rerolls per session; decrements on Again, never on Nope/Tonight
+const { rerollsLeft, useReroll } = useRerolls()
+```
+
+`Again` is disabled when `rerollsLeft === 0`. Rerolls are client-side only — Again calls `GET /events/:id/next` without recording a swipe.
+
+### Page conventions
+
+- Pages own data-fetching and navigation; they never call `fetch` directly — all HTTP/mock lives in `src/api/`.
+- Async state modeled as discriminated union: `{ kind: 'loading' } | { kind: 'success'; data: T } | { kind: 'error'; message: string }` with exhaustive `switch` + `never` default.
