@@ -1,80 +1,166 @@
 # Architecture overview
 
-Cursor Meetup is a client–server application with a clear separation between the React frontend and the FastAPI backend.
+TonightPick is a **mobile-first single-page application** with a thin client architecture. The MVP ships as **frontend-only**, talking to a REST API via environment-configured base URL or an in-app mock layer.
+
+---
 
 ## High-level diagram
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Browser (localhost:5173)                               │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  React App                                        │  │
-│  │  ├── components/   (UI)                           │  │
-│  │  └── api/client.ts (fetch wrapper)                │  │
-│  └───────────────────────┬───────────────────────────┘  │
-└──────────────────────────┼──────────────────────────────┘
-                           │ GET /api/health
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  Vite Dev Server (proxy)                                │
-│  /api/* → http://localhost:8000                         │
-└──────────────────────────┼──────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  FastAPI Backend (localhost:8000)                         │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  app/main.py         Application entry + CORS     │  │
-│  │  app/api/routes/     Route handlers               │  │
-│  │  app/models/         Pydantic request/response    │  │
-│  │  app/core/config.py  Settings from environment    │  │
-│  └───────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  Browser / Mobile Web                                           │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  React SPA (Vite, max-width ~430px)                       │  │
+│  │  ┌─────────┐  ┌──────────────┐  ┌──────────────┐          │  │
+│  │  │  Home   │  │    Swipe     │  │   Results    │          │  │
+│  │  │    /    │  │ /event/:id/  │  │ /event/:id/  │          │  │
+│  │  │         │  │    swipe     │  │   results    │          │  │
+│  │  └────┬────┘  └──────┬───────┘  └──────┬───────┘          │  │
+│  │       └──────────────┼─────────────────┘                  │  │
+│  │                      ▼                                    │  │
+│  │              src/api/client.ts                            │  │
+│  │         (mock adapter OR HTTP fetch)                      │  │
+│  └──────────────────────┬────────────────────────────────────┘  │
+└─────────────────────────┼───────────────────────────────────────┘
+                          │
+          ┌───────────────┴───────────────┐
+          ▼                               ▼
+┌──────────────────┐            ┌──────────────────┐
+│  Mock module     │            │  REST API        │
+│  VITE_USE_MOCK   │            │  VITE_API_URL    │
+│  = true          │            │  :3001 (default) │
+└──────────────────┘            └──────────────────┘
 ```
+
+---
 
 ## Design principles
 
-- **API-first backend** — FastAPI exposes REST endpoints with automatic OpenAPI documentation.
-- **Thin frontend client** — The React app delegates data fetching to a small `api/client.ts` module.
-- **Environment-driven config** — Backend settings load from `.env` via Pydantic Settings; no secrets in source code.
-- **Development proxy** — Vite forwards `/api` requests to the backend so the frontend can use relative URLs.
+| Principle | Implementation |
+|-----------|----------------|
+| **Frontend-first MVP** | Full UX shippable with mock data; API is a stable contract |
+| **Route-driven UI** | Three pages, no dashboard; `react-router-dom` |
+| **Typed boundaries** | Shared `Activity` type; API responses validated at client |
+| **Mobile constraints first** | Touch targets, safe areas, fixed action bar |
+| **Progressive enhancement** | Mock → real API swap via env flag only |
 
-## Backend structure
+---
 
-| Path | Responsibility |
-|------|----------------|
-| `app/main.py` | FastAPI app instance, CORS middleware, router registration |
-| `app/core/config.py` | Centralized settings (`Settings` class) |
-| `app/api/routes/` | HTTP route handlers, grouped by domain |
-| `app/models/schemas.py` | Pydantic models for request/response validation |
+## Application layers
 
-## Frontend structure
+### Presentation (`src/pages/`, `src/components/`)
 
-| Path | Responsibility |
-|------|----------------|
-| `src/main.tsx` | React entry point |
-| `src/App.tsx` | Root layout and page composition |
-| `src/api/client.ts` | Typed HTTP client for backend endpoints |
-| `src/components/` | Reusable UI components |
+- **Pages** own route params, data fetching triggers, and navigation.
+- **Components** are presentational where possible (`ActivityCard`, `SwipeActionBar`).
+- **No global dashboard** — each screen is a focused flow step.
 
-## Request flow (health check example)
+### Data (`src/api/`, `src/types/`)
 
-1. `HealthStatus` component mounts and calls `fetchHealth()`.
-2. `client.ts` sends `GET /api/health` to the Vite dev server.
-3. Vite proxies the request to `http://localhost:8000/api/health`.
-4. FastAPI `health_check` handler returns a `HealthResponse` JSON payload.
-5. The component renders the status message or an error.
+- **`types/activity.ts`** — Canonical `Activity` interface.
+- **`api/client.ts`** — HTTP functions for each endpoint.
+- **`api/mock.ts`** — Sample activities and in-memory event state when `VITE_USE_MOCK=true`.
 
-## Technology choices
+### Routing
 
-| Layer | Stack | Rationale |
-|-------|-------|-----------|
-| Backend | FastAPI + Pydantic | Async-ready, auto-generated docs, strong typing |
-| Frontend | React + TypeScript + Vite | Fast dev experience, type safety, modern tooling |
-| Config | pydantic-settings | Validated env vars with sensible defaults |
+| Path | Page | Primary API calls |
+|------|------|-------------------|
+| `/` | Home | `POST /events` |
+| `/event/:id/swipe` | Swipe | `GET .../next`, `POST .../swipe` |
+| `/event/:id/results` | Results | `GET .../liked` |
 
-## Related docs
+---
 
-- [Backend development](../development/backend.md)
-- [Frontend development](../development/frontend.md)
+## Frontend project structure (target)
+
+```
+frontend/
+├── src/
+│   ├── main.tsx                 # React entry + RouterProvider
+│   ├── App.tsx                  # Route definitions
+│   ├── index.css                # Tailwind + design tokens
+│   ├── types/
+│   │   └── activity.ts          # Activity, Budget, SwipeAction
+│   ├── api/
+│   │   ├── client.ts            # createEvent, getNext, swipe, getLiked
+│   │   └── mock.ts              # Mock data + handlers
+│   ├── pages/
+│   │   ├── HomePage.tsx
+│   │   ├── SwipePage.tsx
+│   │   └── ResultsPage.tsx
+│   ├── components/
+│   │   ├── layout/
+│   │   │   └── AppShell.tsx
+│   │   ├── swipe/
+│   │   │   ├── ActivityCard.tsx
+│   │   │   ├── SwipeActionBar.tsx
+│   │   │   └── TagPill.tsx
+│   │   └── ui/                  # Shared primitives (Button, Badge)
+│   └── hooks/
+│       ├── useRerolls.ts        # Client-side reroll counter (default 3)
+│       └── useActivityTransition.ts
+├── vite.config.ts
+└── package.json
+```
+
+---
+
+## State management (MVP)
+
+| State | Location | Notes |
+|-------|----------|-------|
+| Event ID | URL param `:id` | Source of truth after creation |
+| Current activity | Swipe page local state | Refetched on next / again |
+| Rerolls remaining | `useRerolls` hook (session) | Default 3; decrements on Again only |
+| Liked activities | Server (`GET /liked`) | Mock stores in memory per event |
+| Mood / title | Home form → POST body | Not persisted client-side after nav |
+
+No Redux required for MVP; React state + router params suffice.
+
+---
+
+## Backend (contract only — MVP)
+
+The MVP frontend targets a REST API on `VITE_API_URL`. Backend implementation is **out of MVP scope** but the contract is fixed:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/events` | Create event |
+| `GET` | `/events/:id/next` | Next activity card |
+| `POST` | `/events/:id/swipe` | Record like or pass |
+| `GET` | `/events/:id/liked` | List liked activities |
+
+See [API reference](../api/reference.md) for request/response schemas.
+
+**Suggested future backend stack** (not required for frontend MVP):
+
+- Node (Express/Fastify) or Python (FastAPI)
+- PostgreSQL or SQLite for events, swipes, activities
+- Optional Redis for session reroll counts if server-authoritative rerolls are needed
+
+---
+
+## Environment & deployment
+
+| Variable | Role |
+|----------|------|
+| `VITE_API_URL` | API origin (default `http://localhost:3001`) |
+| `VITE_USE_MOCK` | `true` → bypass network, use mock module |
+
+Production: static build (`dist/`) served from CDN or object storage; API on separate origin with CORS configured.
+
+---
+
+## Security (MVP)
+
+- No auth — events identified by opaque UUID in URL (security through obscurity; acceptable for MVP demo).
+- No PII fields in MVP forms.
+- Sanitize activity text when rendering (React default escaping).
+
+---
+
+## Related documentation
+
 - [API reference](../api/reference.md)
+- [UI specification](../design/ui-spec.md)
+- [Frontend development](../development/frontend.md)
+- [Environment variables](../development/environment-variables.md)

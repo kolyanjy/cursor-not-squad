@@ -1,57 +1,78 @@
 # Environment variables
 
-The backend loads configuration from environment variables and an optional `.env` file in the `backend/` directory.
+TonightPick uses Vite environment variables on the frontend. All client-exposed keys must be prefixed with `VITE_`.
 
-## Backend variables
+---
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APP_NAME` | `Cursor Meetup API` | Application title (shown in OpenAPI docs) |
-| `DEBUG` | `true` | Enable debug mode |
-| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated list of allowed frontend origins |
+## Frontend variables
+
+| Variable | Default | Required | Description |
+|----------|---------|----------|-------------|
+| `VITE_API_URL` | `http://localhost:3001` | No | Base URL for the TonightPick REST API |
+| `VITE_USE_MOCK` | `false` | No | When `true`, use in-app mock data instead of HTTP |
+
+---
 
 ## Setup
 
-```bash
-cd backend
-cp .env.example .env
-```
-
-Example `.env` file:
+Create `frontend/.env.local` (gitignored):
 
 ```env
-APP_NAME=Cursor Meetup API
-DEBUG=true
-CORS_ORIGINS=http://localhost:5173
+VITE_API_URL=http://localhost:3001
+VITE_USE_MOCK=true
 ```
 
-## CORS origins
+For local development **without a backend**, set `VITE_USE_MOCK=true`.
 
-`CORS_ORIGINS` accepts a comma-separated list when multiple origins are needed:
+For integration with a real API:
 
 ```env
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+VITE_API_URL=http://localhost:3001
+VITE_USE_MOCK=false
 ```
 
-The value is parsed into a Python list by Pydantic Settings. Ensure every frontend URL that calls the API directly (not through a proxy) is included.
+Restart the Vite dev server after changing env files.
 
-## Production notes
+---
 
-- Set `DEBUG=false` in production.
-- Restrict `CORS_ORIGINS` to your actual frontend domain(s).
-- Never commit `.env` files with secrets. The `.env.example` file documents required keys without real values.
+## Usage in code
 
-## How it works
-
-Settings are defined in `app/core/config.py` using `pydantic-settings`:
-
-```python
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
-    app_name: str = "Cursor Meetup API"
-    debug: bool = True
-    cors_origins: list[str] = ["http://localhost:5173"]
+```typescript
+const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+const useMock = import.meta.env.VITE_USE_MOCK === 'true'
 ```
 
-Environment variable names are case-insensitive and map to field names automatically (`APP_NAME` → `app_name`).
+Vite replaces these at build time. Do not store secrets in `VITE_*` variables — they are embedded in the client bundle.
+
+---
+
+## Production
+
+| Environment | `VITE_API_URL` | `VITE_USE_MOCK` |
+|-------------|----------------|-----------------|
+| Production | `https://api.tonightpick.example` | `false` |
+| Staging | Staging API URL | `false` |
+| Local demo | Any | `true` |
+
+Set variables in your CI/CD platform or hosting provider (Vercel, Netlify, etc.) before `npm run build`.
+
+---
+
+## Backend variables (future)
+
+When a backend is implemented for TonightPick, document server-side variables here. Suggested keys:
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Persistence for events and swipes |
+| `CORS_ORIGINS` | Allowed frontend origins |
+| `PORT` | API listen port (default `3001`) |
+
+The frontend MVP does not require a running backend when mock mode is enabled.
+
+---
+
+## Related documentation
+
+- [Frontend development](frontend.md)
+- [API reference](../api/reference.md)

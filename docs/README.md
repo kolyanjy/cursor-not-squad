@@ -1,40 +1,68 @@
-# Cursor Meetup Documentation
+# TonightPick Documentation
 
-Welcome to the Cursor Meetup project documentation. This guide covers everything you need to understand, develop, and deploy the application.
+Technical and product documentation for **TonightPick** — a mobile-first app that helps groups pick what to do tonight through a swipe-based activity flow.
 
-## What is Cursor Meetup?
+---
 
-A full-stack application with a **React** frontend and a **Python (FastAPI)** backend. The frontend proxies API requests through Vite during development and displays live backend health status.
+## Product
 
-## Documentation map
+| Document | Description |
+|----------|-------------|
+| [Product overview](product/overview.md) | Problem, users, value proposition, scope |
+| [MVP roadmap](product/mvp-roadmap.md) | Phased delivery plan from scaffold to ship |
 
-| Section | Description |
-|---------|-------------|
-| [Getting started](getting-started/quick-start.md) | Install dependencies and run the app locally |
-| [Architecture](architecture/overview.md) | System design, data flow, and project layout |
-| [Development](development/backend.md) | Backend and frontend development guides |
-| [API reference](api/reference.md) | REST endpoints and response schemas |
-| [Deployment](deployment/overview.md) | Production deployment considerations |
+---
 
-## Quick links
+## Design & architecture
 
-- **Run locally:** [Quick start](getting-started/quick-start.md)
-- **Environment config:** [Environment variables](development/environment-variables.md)
-- **Contribute:** [Contributing guide](development/contributing.md)
-- **Interactive API docs:** `http://localhost:8000/docs` (when the backend is running)
+| Document | Description |
+|----------|-------------|
+| [UI specification](design/ui-spec.md) | Visual design, screens, components, interactions |
+| [Architecture overview](architecture/overview.md) | System design, folder structure, state model |
 
-## Repository structure
+---
+
+## Development
+
+| Document | Description |
+|----------|-------------|
+| [Quick start](getting-started/quick-start.md) | Install and run locally |
+| [Frontend development](development/frontend.md) | React/Vite conventions and implementation guide |
+| [Environment variables](development/environment-variables.md) | `VITE_API_URL`, `VITE_USE_MOCK`, and more |
+| [Contributing](development/contributing.md) | Contribution guidelines |
+
+---
+
+## API
+
+| Document | Description |
+|----------|-------------|
+| [API reference](api/reference.md) | REST endpoints, schemas, mock mode |
+
+---
+
+## Repository layout
 
 ```
 .
-├── backend/          # Python FastAPI API
-│   └── app/
-│       ├── api/      # Route handlers
-│       ├── core/     # Config and shared utilities
-│       └── models/   # Pydantic schemas
-├── frontend/         # React + Vite + TypeScript
+├── frontend/              # React + Vite + TypeScript + Tailwind (TonightPick UI)
 │   └── src/
-│       ├── api/      # API client
-│       └── components/
-└── docs/             # Project documentation (you are here)
+│       ├── pages/         # Home, Swipe, Results
+│       ├── components/    # ActivityCard, SwipeActionBar, …
+│       ├── api/           # HTTP client + mock adapter
+│       └── types/         # Activity and shared types
+├── backend/               # Optional future API (contract defined in docs)
+└── docs/                  # Documentation (you are here)
 ```
+
+---
+
+## Quick reference
+
+**Stack:** Vite · React 19 · TypeScript · Tailwind CSS 4 · react-router-dom  
+
+**Routes:** `/` · `/event/:id/swipe` · `/event/:id/results`  
+
+**MVP scope:** Frontend only; mock mode supported  
+
+**Accent:** Teal `#4FD1C5` on dark `#0a0a0f` background

@@ -1,30 +1,25 @@
-# Cursor Meetup
+# TonightPick
 
-Full-stack app with a React frontend and Python (FastAPI) backend.
+Mobile-first web app for deciding **what to do tonight**. Create an event, swipe through activity cards, and pick a winner from the options you loved.
+
+---
 
 ## Documentation
 
-Full project documentation lives in [`docs/`](docs/README.md):
+Full documentation lives in [`docs/`](docs/README.md):
 
 | Section | Link |
 |---------|------|
-| Quick start | [docs/getting-started/quick-start.md](docs/getting-started/quick-start.md) |
+| Product overview | [docs/product/overview.md](docs/product/overview.md) |
+| MVP roadmap | [docs/product/mvp-roadmap.md](docs/product/mvp-roadmap.md) |
+| UI specification | [docs/design/ui-spec.md](docs/design/ui-spec.md) |
 | Architecture | [docs/architecture/overview.md](docs/architecture/overview.md) |
-| Development | [docs/development/backend.md](docs/development/backend.md) |
 | API reference | [docs/api/reference.md](docs/api/reference.md) |
-| Deployment | [docs/deployment/overview.md](docs/deployment/overview.md) |
+| Frontend guide | [docs/development/frontend.md](docs/development/frontend.md) |
+
+---
 
 ## Quick start
-
-**Backend** (port 8000):
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
 
 **Frontend** (port 5173):
 
@@ -34,5 +29,28 @@ npm install
 npm run dev
 ```
 
-- App: http://localhost:5173
-- API docs: http://localhost:8000/docs
+**Mock mode** — create `frontend/.env.local`:
+
+```env
+VITE_USE_MOCK=true
+VITE_API_URL=http://localhost:3001
+```
+
+App: http://localhost:5173
+
+---
+
+## MVP scope
+
+- **In:** Home → Swipe → Results flow, dark mobile UI, API client + mock mode
+- **Out:** Auth, dashboard, real-time sync, native apps (post-MVP)
+
+---
+
+## Tech stack
+
+| Layer | Stack |
+|-------|--------|
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, react-router-dom |
+| API (contract) | REST on `VITE_API_URL` (default `:3001`) |
+| Icons | lucide-react |

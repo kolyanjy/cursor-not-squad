@@ -1,63 +1,79 @@
 # Quick start
 
-Get Cursor Meetup running locally in a few minutes.
+Get TonightPick running locally in under five minutes.
 
-## 1. Start the backend
+---
 
-```bash
-cd backend
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-uvicorn app.main:app --reload --port 8000
-```
+## Prerequisites
 
-The API is available at `http://localhost:8000`.
+- **Node.js** 20 or later
+- **npm** 10 or later
 
-Verify it responds:
+No backend is required if you use mock mode.
 
-```bash
-curl http://localhost:8000/api/health
-# {"status":"ok","message":"API is running"}
-```
+---
 
-Interactive API documentation: `http://localhost:8000/docs`
-
-## 2. Start the frontend
-
-In a second terminal:
+## 1. Install dependencies
 
 ```bash
 cd frontend
+npm install
+```
+
+Add the router when implementing routes (if not yet installed):
+
+```bash
+npm install react-router-dom
+```
+
+---
+
+## 2. Configure environment
+
+Create `frontend/.env.local`:
+
+```env
+VITE_USE_MOCK=true
+VITE_API_URL=http://localhost:3001
+```
+
+See [Environment variables](../development/environment-variables.md) for details.
+
+---
+
+## 3. Start the dev server
+
+```bash
 npm run dev
 ```
 
-The app is available at `http://localhost:5173`.
+Open **http://localhost:5173**
 
-## 3. Confirm end-to-end connectivity
+---
 
-Open `http://localhost:5173` in your browser. The page should display a green status message indicating the API is reachable:
+## 4. Verify the flow
 
-> API is running (ok)
+| Step | URL | Action |
+|------|-----|--------|
+| Home | `/` | Enter event title, tap **Start** |
+| Swipe | `/event/:id/swipe` | Nope / Tonight / Again on activity cards |
+| Results | `/event/:id/results` | View liked activities, **Pick winner** |
 
-If you see an error instead, ensure the backend is running on port 8000. The Vite dev server proxies `/api` requests to the backend automatically.
+With mock mode, sample activities include the reference card: *Grab bubble tea and walk 30min*.
 
-## Development workflow
+---
 
-| Service | URL | Hot reload |
-|---------|-----|------------|
-| Frontend | `http://localhost:5173` | Yes (Vite HMR) |
-| Backend | `http://localhost:8000` | Yes (`--reload` flag) |
-| API proxy | `/api/*` → `localhost:8000` | N/A |
+## Production build
 
-## Troubleshooting
+```bash
+npm run build
+npm run preview
+```
 
-| Symptom | Likely cause | Fix |
-|---------|--------------|-----|
-| `Failed to reach API` in the UI | Backend not running | Start uvicorn on port 8000 |
-| CORS errors in browser console | Origin not in `CORS_ORIGINS` | Add your frontend URL to `backend/.env` |
-| `ModuleNotFoundError` | Virtual env not activated | Run `source .venv/bin/activate` |
+---
 
 ## Next steps
 
-- [Architecture overview](../architecture/overview.md) — understand how the pieces fit together
-- [Backend development](../development/backend.md) — add new API routes
-- [Frontend development](../development/frontend.md) — build new UI components
+- [UI specification](../design/ui-spec.md) — pixel-level design targets
+- [MVP roadmap](../product/mvp-roadmap.md) — implementation phases
+- [Frontend development](../development/frontend.md) — code conventions
