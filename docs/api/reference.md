@@ -142,63 +142,108 @@ See [Backend development](../development/backend.md) for the full workflow.
 
 ## TonightPick event API
 
-These four endpoints power the TonightPick swipe product. The backend must implement them (or the frontend uses `VITE_USE_MOCK=true` to skip the network entirely).
+These six endpoints power the TonightPick swipe product. The backend must implement them (or the frontend uses `VITE_USE_MOCK=true` to skip the network entirely).
 
-**Base URL (dev):** `http://localhost:3001` · **Content-Type:** `application/json`
+**Base URL (dev):** `http://localhost:3001` · **Content-Type:** `application/json` · **Error shape:** `{ "error": "message" }`
+
+> Full handoff spec (screens, scoring algorithm, acceptance test, definition of done): [`IMPLEMENTATION.md`](../../IMPLEMENTATION.md)
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
+| `GET` | `/health` | Liveness check |
 | `POST` | `/events` | Create a new swipe session |
 | `GET` | `/events/:id/next` | Fetch the next activity card |
 | `POST` | `/events/:id/swipe` | Record a like or pass |
+| `POST` | `/events/:id/reroll` | Again — new card without recording a decision |
 | `GET` | `/events/:id/liked` | List all liked activities |
 
-### Activity type (TonightPick)
+### Data models
 
 ```ts
+type Mood   = 'home' | 'out' | 'friends'
+type Budget = 'free' | 'low' | 'medium'
+
+// Catalog item (stored on backend)
 interface Activity {
-  id: string            // e.g. "act_bubble_tea_walk"
+  id: string
   title: string
   description: string
   emoji?: string
-  tags: string[]        // e.g. ["Outdoor"]
-  budget: 'free' | 'low' | 'medium'   // display: free → "free", low → "$", medium → "$$"
-  duration: string      // e.g. "45 min"
-  score?: number        // 70–95 typical; shown on card
-  weatherBoost?: boolean  // true → show "Weather boost active"
+  tags: string[]      // e.g. ["outdoor", "food"]
+  budget: Budget
+  duration: string    // display string e.g. "45 min"
+  mood: Mood[]        // which moods this activity fits
+}
+
+// API response shape (catalog + runtime scoring)
+interface ActivityCard extends Activity {
+  score: number         // 0–100, computed per request
+  weatherBoost: boolean
+}
+
+// Session state (stored server-side)
+interface Event {
+  id: string
+  title: string
+  mood?: Mood
+  liked: string[]       // activity ids marked Tonight
+  passed: string[]      // activity ids marked Nope
+  seen: string[]        // all shown ids (incl. rerolls)
+  rerollsLeft: number   // starts at 3
+  createdAt: string     // ISO 8601
 }
 ```
 
+Budget display: `free` → "free" · `low` → "$" · `medium` → "$$"
+
+### `GET /health`
+
+Response `200`: `{ "ok": true }`
+
 ### `POST /events`
 
-Body: `{ "title": "Friday crew", "mood": "chill" }` (`title` required, `mood` optional).
-Response `201`: `{ "id": "evt_8f3k2m9x" }`
+Body: `{ "title": "Friday night", "mood": "out" }` (`title` required; `mood` optional — `home | out | friends`).
+
+Response `201`:
+```json
+{ "id": "uuid", "title": "Friday night", "shareUrl": "http://localhost:5173/event/uuid/swipe", "rerollsLeft": 3 }
+```
+
+Response `400`: missing/empty title.
 
 ### `GET /events/:id/next`
 
-Called on swipe page load **and on Again** (reroll — no swipe is recorded).
-Response `200`: `{ "activity": { ...Activity } }`
-`404` — event not found → redirect Home. `204` / empty — no more activities → navigate to Results.
+Response `200`: `{ "activity": { ...ActivityCard } }` — always wrapped, never a bare object.
+Response `404`: no more cards or event not found → navigate to Results.
 
 ### `POST /events/:id/swipe`
 
-Body: `{ "activityId": "act_...", "action": "like" | "pass" }` (`like` = Tonight, `pass` = Nope).
-Response `200`: `{ "ok": true }`
-**Again does NOT call this endpoint** — it only calls `GET /next`.
+Body: `{ "activityId": "12", "action": "like" | "pass" }` (`like` = Tonight, `pass` = Nope).
+Response `200`: `{ "ok": true, "likedCount": 2, "passedCount": 1 }`
+Response `400`: unknown event, invalid action, or activity already decided.
+
+### `POST /events/:id/reroll`
+
+**Again** — shows a different card without recording Nope or Tonight. Decrements `rerollsLeft`.
+
+Request: empty body or `{}`
+Response `200`: `{ "activity": { ...ActivityCard }, "rerollsLeft": 2 }`
+Response `400`: `{ "error": "No rerolls left" }`
+Response `404`: event not found or no more activities.
 
 ### `GET /events/:id/liked`
 
-Response `200`: `{ "activities": Activity[] }` — all Tonight picks for the event.
+Response `200`: `{ "activities": ActivityCard[] }` — all Tonight picks for the session.
+Response `404`: event not found.
 
 ### Typed client signatures
 
 ```ts
-export type SwipeAction = 'like' | 'pass'
-
-createEvent(body: { title: string; mood?: string }): Promise<{ id: string }>
-getNextActivity(eventId: string): Promise<{ activity: Activity }>
-recordSwipe(eventId: string, body: { activityId: string; action: SwipeAction }): Promise<{ ok: boolean }>
-getLikedActivities(eventId: string): Promise<{ activities: Activity[] }>
+createEvent(body: { title: string; mood?: Mood }): Promise<{ id: string; shareUrl: string; rerollsLeft: number }>
+getNextActivity(eventId: string): Promise<{ activity: ActivityCard }>
+recordSwipe(eventId: string, body: { activityId: string; action: 'like' | 'pass' }): Promise<{ ok: boolean; likedCount: number; passedCount: number }>
+reroll(eventId: string): Promise<{ activity: ActivityCard; rerollsLeft: number }>
+getLikedActivities(eventId: string): Promise<{ activities: ActivityCard[] }>
 ```
 
 ### Error handling
@@ -207,5 +252,4 @@ getLikedActivities(eventId: string): Promise<{ activities: Activity[] }>
 |--------|---------|--------|
 | 400 | Invalid body | Inline error |
 | 404 | Unknown event | Redirect Home |
-| 422 | Validation | Field errors |
 | 5xx | Server error | Retry CTA + toast |

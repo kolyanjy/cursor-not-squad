@@ -16,7 +16,7 @@ Hackathon prompt: solve a real problem *without* a conventional dashboard as the
 
 - **Stack (MVP):** React 19 + Vite + TypeScript (strict) + Tailwind CSS 4 + react-router-dom + lucide-react. Lives in `frontend/`. Rails backend exists as a starter; TonightPick API contract is in `docs/api/reference.md`.
 - **Routes:** `/` (Home) · `/event/:id/swipe` (Swipe) · `/event/:id/results` (Results).
-- **API (4 endpoints):** `POST /events` · `GET /events/:id/next` · `POST /events/:id/swipe` · `GET /events/:id/liked`. No reroll endpoint — Again is client-side (re-calls `GET /next`; rerolls in `useRerolls` hook, default 3). Base URL `http://localhost:3001`.
+- **API (6 endpoints):** `GET /health` · `POST /events` · `GET /events/:id/next` · `POST /events/:id/swipe` · `POST /events/:id/reroll` · `GET /events/:id/liked`. Base URL `http://localhost:3001`. Again calls `POST /reroll` (server-authoritative; returns new card + `rerollsLeft`).
 - **Mock mode:** `VITE_USE_MOCK=true` bypasses the network entirely — the app ships without a backend.
 - **Design:** dark `#0a0a0f` + teal accent `#4FD1C5`; max-width ~430px centered; touch targets ≥48px.
 
@@ -41,8 +41,8 @@ Set `frontend/.env.local`: `VITE_USE_MOCK=true`, `VITE_API_URL=http://localhost:
 ## Watch out
 
 - The existing `frontend/` code is the Cursor Meetup landing page starter (no routes, no mock, Rails-proxied health call). The TonightPick product — routes, swipe pages, activity types, mock layer — needs to be built on top of it. See `docs/development/frontend.md` (TonightPick additions section).
-- Reroll is client-side only (`useRerolls` hook). No `/reroll` endpoint.
-- Mood vocabulary: use chips **Chill · Active · Out · Cozy** on the Home screen.
+- Reroll is **server-side**: Again calls `POST /events/:id/reroll`, which returns the next card and updated `rerollsLeft`. Frontend seeds the counter from the `POST /events` response.
+- Mood vocabulary: **home · out · friends** (sent as-is to the API; display as chips "Home / Out / Friends").
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,

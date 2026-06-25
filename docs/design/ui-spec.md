@@ -116,7 +116,7 @@ Max width **~430 px** centered on desktop (no separate desktop layout). Cards us
 
 Title input (required; placeholder "Friday crew") + optional mood chips (sent as `mood` on `POST /events`) + teal **Start** CTA → creates event → navigates to `/event/:id/swipe`. No nav bars.
 
-Mood chips (select one): **Chill · Active · Out · Cozy**
+Mood chips (select one): **Home · Out · Friends** (maps to `home | out | friends` in API)
 
 ### Swipe (`/event/:id/swipe`)
 

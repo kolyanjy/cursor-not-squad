@@ -228,12 +228,12 @@ frontend/src/
     └── useActivityTransition.ts  # card key/animation helper
 ```
 
-### Activity type
+### Activity types
 
 ```ts
 // src/types/activity.ts
+export type Mood   = 'home' | 'out' | 'friends'
 export type Budget = 'free' | 'low' | 'medium'
-export type SwipeAction = 'like' | 'pass'
 
 export interface Activity {
   id: string
@@ -243,8 +243,12 @@ export interface Activity {
   tags: string[]
   budget: Budget
   duration: string
-  score?: number
-  weatherBoost?: boolean
+  mood: Mood[]          // which moods this activity fits
+}
+
+export interface ActivityCard extends Activity {
+  score: number         // 0–100
+  weatherBoost: boolean
 }
 ```
 
@@ -254,22 +258,18 @@ export interface Activity {
 {
   id: 'act_bubble_tea_walk',
   title: 'Grab bubble tea and walk 30 min',
-  tags: ['Outdoor'],
+  tags: ['outdoor'],
   budget: 'low',
   duration: '45 min',
+  mood: ['out'],
   weatherBoost: true,
-  score: 82,
+  score: 91,
 }
 ```
 
-### useRerolls hook
+### Rerolls (server-authoritative)
 
-```ts
-// default 3 rerolls per session; decrements on Again, never on Nope/Tonight
-const { rerollsLeft, useReroll } = useRerolls()
-```
-
-`Again` is disabled when `rerollsLeft === 0`. Rerolls are client-side only — Again calls `GET /events/:id/next` without recording a swipe.
+`rerollsLeft` is returned by `POST /events` (always `3`) and by each `POST /events/:id/reroll` response. The frontend tracks it in local state, seeded from the create response. Again calls `POST /events/:id/reroll` — not `GET /next`. The button is disabled when `rerollsLeft === 0`.
 
 ### Page conventions
 
