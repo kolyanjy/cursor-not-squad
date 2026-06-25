@@ -4,7 +4,7 @@ COMPOSE := docker compose
 DOCKER_READY := ./scripts/docker-ready.sh
 
 .PHONY: help docker-ready start up up-d down stop logs restart build ps clean setup \
-        shell-backend shell-frontend db-prepare db-seed
+        shell-backend shell-frontend db-prepare db-seed deps
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z0-9_-]+.*:.*?## .*$$' $(MAKEFILE_LIST) | sort -u | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -58,6 +58,9 @@ shell-backend: docker-ready ## Open bash shell in backend container
 
 shell-frontend: docker-ready ## Open sh shell in frontend container
 	$(COMPOSE) exec frontend sh
+
+deps: docker-ready ## Sync frontend node_modules in Docker after package.json changes
+	$(COMPOSE) exec frontend npm install
 
 clean: docker-ready ## Stop services and remove volumes (resets DB)
 	$(COMPOSE) down -v
