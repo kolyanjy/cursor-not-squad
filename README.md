@@ -2,27 +2,21 @@
 
 Full-stack app with a React frontend and Python (FastAPI) backend.
 
-## Project structure
+## Documentation
 
-```
-.
-├── backend/          # Python FastAPI API
-│   └── app/
-│       ├── api/      # Route handlers
-│       ├── core/     # Config, shared utilities
-│       └── models/   # Pydantic schemas
-└── frontend/         # React + Vite + TypeScript
-    └── src/
-        ├── api/      # API client
-        └── components/
-```
+Full project documentation lives in [`docs/`](docs/README.md):
 
-## Prerequisites
+| Section | Link |
+|---------|------|
+| Quick start | [docs/getting-started/quick-start.md](docs/getting-started/quick-start.md) |
+| Architecture | [docs/architecture/overview.md](docs/architecture/overview.md) |
+| Development | [docs/development/backend.md](docs/development/backend.md) |
+| API reference | [docs/api/reference.md](docs/api/reference.md) |
+| Deployment | [docs/deployment/overview.md](docs/deployment/overview.md) |
 
-- Node.js 18+
-- Python 3.11+
+## Quick start
 
-## Backend
+**Backend** (port 8000):
 
 ```bash
 cd backend
@@ -32,9 +26,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-API docs: http://localhost:8000/docs
-
-## Frontend
+**Frontend** (port 5173):
 
 ```bash
 cd frontend
@@ -42,8 +34,5 @@ npm install
 npm run dev
 ```
 
-App: http://localhost:5173
-
-## Development
-
-The Vite dev server proxies `/api` requests to the backend on port 8000.
+- App: http://localhost:5173
+- API docs: http://localhost:8000/docs
