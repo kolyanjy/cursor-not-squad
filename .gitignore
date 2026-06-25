@@ -2,33 +2,42 @@
 node_modules/
 frontend/node_modules/
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-.Python
-.venv/
-venv/
-env/
-*.egg-info/
-dist/
-build/
-
-# Environment
+# Environment — local overrides (never commit these)
 .env
 .env.local
+.env.*.local
+frontend/.env.local
+backend/.env.local
+# .env.example is intentionally tracked
 
 # Build outputs
 frontend/dist/
+dist/
+build/
 *.log
 
 # IDE & OS
 .idea/
 .vscode/
 .DS_Store
+Thumbs.db
 *.swp
+*.swo
+
+# Python (legacy)
+__pycache__/
+*.py[cod]
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
 
 # Testing
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Temp
+tmp/
+*.tmp
