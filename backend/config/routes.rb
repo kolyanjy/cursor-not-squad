@@ -10,4 +10,5 @@ Rails.application.routes.draw do
   get "me", to: "current_user#show"
 
   get "activities/random", to: "activities#random", as: :random_activities
+  post "activities/:id/like", to: "activities#like", as: :like_activity
 end

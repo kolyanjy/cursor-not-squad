@@ -43,4 +43,46 @@ RSpec.describe "Activities", type: :request do
       expect(response.parsed_body["error"]).to eq("No activities found")
     end
   end
+
+  describe "POST /activities/:id/like" do
+    let(:user) do
+      User.create!(email: "liker@example.com", password: "secret123", password_confirmation: "secret123")
+    end
+    let(:token) { user.generate_token_for(:auth) }
+    let(:auth_headers) { { "Authorization" => "Bearer #{token}" } }
+
+    it "creates a like between the current user and the activity" do
+      expect {
+        post like_activity_path(hike), headers: auth_headers
+      }.to change(Like, :count).by(1)
+
+      expect(response).to have_http_status(:created)
+      json = response.parsed_body
+      expect(json["user_id"]).to eq(user.id)
+      expect(json["activity_id"]).to eq(hike.id)
+    end
+
+    it "is idempotent and does not create a duplicate like" do
+      post like_activity_path(hike), headers: auth_headers
+
+      expect {
+        post like_activity_path(hike), headers: auth_headers
+      }.not_to change(Like, :count)
+
+      expect(response).to have_http_status(:created)
+    end
+
+    it "returns not found for an unknown activity" do
+      post like_activity_path(id: 0), headers: auth_headers
+
+      expect(response).to have_http_status(:not_found)
+      expect(response.parsed_body["error"]).to eq("Activity not found")
+    end
+
+    it "rejects a request without a token" do
+      post like_activity_path(hike)
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
 end

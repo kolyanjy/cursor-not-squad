@@ -1,5 +1,7 @@
 class Activity < ApplicationRecord
   belongs_to :category
+  has_many :likes, dependent: :destroy
+  has_many :liked_by, through: :likes, source: :user
 
   validates :title, presence: true
 
