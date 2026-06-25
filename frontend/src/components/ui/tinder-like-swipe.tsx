@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, type PanInfo } from 'framer-motion'
-import { forwardRef, useEffect, useImperativeHandle, useState, type ReactNode } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState, type ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -28,6 +28,8 @@ export interface SwipeableCardStackProps {
   rightIcon?: ReactNode
   leftIcon?: ReactNode
   className?: string
+  /** Fired when a card leaves the deck, by drag or by `swipeTop`. */
+  onSwipe?: (item: SwipeCardItem, direction: 'left' | 'right') => void
 }
 
 export const SwipeableCardStack = forwardRef<SwipeableCardStackHandle, SwipeableCardStackProps>(function SwipeableCardStack({
@@ -42,6 +44,7 @@ export const SwipeableCardStack = forwardRef<SwipeableCardStackHandle, Swipeable
   rightIcon = null,
   leftIcon = null,
   className,
+  onSwipe,
 }, ref) {
   const [cards, setCards] = useState([...items])
   const [dragDirections, setDragDirections] = useState<Record<number, DragDirection>>({})
@@ -76,21 +79,23 @@ export const SwipeableCardStack = forwardRef<SwipeableCardStackHandle, Swipeable
     }
   }
 
-  const handleSwipe = (index: number, direction: DragDirection) => {
+  const handleSwipe = useCallback((index: number, direction: DragDirection) => {
     if (!direction) return
 
+    const item = cards[index]
     setDragDirections((prev) => ({ ...prev, [index]: direction }))
     setTimeout(() => {
       setCards((prevCards) => prevCards.filter((_, i) => i !== index))
     }, 300)
-  }
+    if (item) onSwipe?.(item, direction)
+  }, [cards, onSwipe])
 
   useImperativeHandle(ref, () => ({
     swipeTop: (direction) => {
       if (cards.length === 0) return
       handleSwipe(cards.length - 1, direction)
     },
-  }), [cards.length])
+  }), [cards.length, handleSwipe])
 
   return (
     <div className={cn('relative h-full w-full', className)}>

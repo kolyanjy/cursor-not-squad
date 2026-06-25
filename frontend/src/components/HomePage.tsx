@@ -1,5 +1,5 @@
 import { Heart, Sparkles, SquarePen, X } from 'lucide-react'
-import { useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 import { AIChat } from '@/components/AIChat'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { InteractiveNebulaShader } from '@/components/ui/liquid-shader'
 import {
   SwipeableCardStack,
   type SwipeableCardStackHandle,
+  type SwipeCardItem,
 } from '@/components/ui/tinder-like-swipe'
 import { eveningActivities } from '@/data/activities'
 import { useChat } from '@/hooks/useChat'
@@ -14,9 +15,24 @@ import { useChat } from '@/hooks/useChat'
 export function HomePage() {
   const { messages, status, error, activities, activitiesLoading, send, stop, reset } = useChat()
   const cardStackRef = useRef<SwipeableCardStackHandle>(null)
+  const [tonight, setTonight] = useState<SwipeCardItem[]>([])
   const hasConversation = messages.length > 0
   // Show the AI-generated deck once it exists; until then, the seed deck.
   const deck = activities.length > 0 ? activities : eveningActivities
+
+  const handleSwipe = useCallback((item: SwipeCardItem, direction: 'left' | 'right') => {
+    if (direction !== 'right') return
+    setTonight((prev) => (prev.some((p) => p.id === item.id) ? prev : [...prev, item]))
+  }, [])
+
+  const removeFromTonight = useCallback((id: string) => {
+    setTonight((prev) => prev.filter((p) => p.id !== id))
+  }, [])
+
+  const handleNewChat = useCallback(() => {
+    reset()
+    setTonight([])
+  }, [reset])
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">
@@ -37,7 +53,7 @@ export function HomePage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={reset}
+              onClick={handleNewChat}
               disabled={!hasConversation}
               className="gap-1.5"
             >
@@ -76,6 +92,7 @@ export function HomePage() {
                 rightIcon={<Heart className="size-20 text-emerald-400 drop-shadow-lg" strokeWidth={1.5} />}
                 leftIcon={<X className="size-20 text-red-400 drop-shadow-lg" strokeWidth={1.5} />}
                 className="relative z-10"
+                onSwipe={handleSwipe}
               />
 
               {activitiesLoading ? (
@@ -94,6 +111,44 @@ export function HomePage() {
               <Heart className="size-4 shrink-0 text-emerald-400" strokeWidth={2} />
               Tonight
             </button>
+
+            {tonight.length > 0 ? (
+              <div className="w-full max-w-sm">
+                <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Heart className="size-4 text-emerald-400" strokeWidth={2} />
+                  Tonight
+                  <span className="text-muted-foreground/60">· {tonight.length}</span>
+                </h2>
+
+                <ul className="flex flex-col gap-2">
+                  {tonight.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-sm"
+                    >
+                      <Heart
+                        className="mt-0.5 size-4 shrink-0 text-emerald-400"
+                        strokeWidth={2}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground">{item.title}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {item.description}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFromTonight(item.id)}
+                        aria-label={`Remove ${item.title} from Tonight`}
+                        className="-mr-1 flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-white/10 hover:text-foreground"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </section>
         </main>
       </div>
