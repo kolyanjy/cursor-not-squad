@@ -1,34 +1,49 @@
 # Prerequisites
 
-Before setting up Cursor Meetup, ensure your development environment meets the following requirements.
+Before setting up Cursor Meetup, ensure your development environment meets the following requirements. The **recommended** path runs everything in Docker, so most local tooling is optional.
 
-## Required
+## Recommended (Docker workflow)
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| [Node.js](https://nodejs.org/) | 18 or later | Frontend tooling and dev server |
-| [npm](https://www.npmjs.com/) | Bundled with Node.js | Frontend package management |
-| [Python](https://www.python.org/) | 3.11 or later | Backend runtime |
-| [pip](https://pip.pypa.io/) | Bundled with Python | Backend package management |
+| [Docker](https://www.docker.com/) | with Compose v2 | Runs db + backend + frontend |
+| [Make](https://www.gnu.org/software/make/) | any recent | Convenience targets (`make up`, etc.) |
+| [Git](https://git-scm.com/) | any recent | Version control |
 
-## Recommended
+With Docker you do **not** need Ruby, Node, or PostgreSQL installed locally. On macOS, `make` auto-starts Docker Desktop via `scripts/docker-ready.sh`.
 
-| Tool | Purpose |
-|------|---------|
-| [Git](https://git-scm.com/) | Version control |
-| A modern code editor (e.g. [Cursor](https://cursor.com/), VS Code) | Development |
-| [curl](https://curl.se/) or [httpie](https://httpie.io/) | Manual API testing |
+## Optional (native, no Docker)
+
+Only needed if you want to run a service directly on your machine.
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| [Ruby](https://www.ruby-lang.org/) | 3.4.9 (see `backend/.ruby-version`) | Run the Rails backend natively |
+| [Bundler](https://bundler.io/) | bundled with Ruby | Backend gem management |
+| [Node.js](https://nodejs.org/) | 22 (matches `frontend/Dockerfile.dev`) | Run the Vite frontend natively |
+| [npm](https://www.npmjs.com/) | bundled with Node.js | Frontend package management |
+| [PostgreSQL](https://www.postgresql.org/) | 16 | Only if not using the Dockerized db (Rails falls back to SQLite otherwise) |
+
+> A modern editor such as [Cursor](https://cursor.com/) or VS Code, and [curl](https://curl.se/) / [httpie](https://httpie.io/) for manual API testing, are handy but not required.
 
 ## Verify your setup
 
+**Docker path:**
+
 ```bash
-node --version    # v18.x.x or higher
-npm --version
-python3 --version # 3.11.x or higher
-pip3 --version
+docker --version
+docker compose version
+make --version
+```
+
+**Native path (optional):**
+
+```bash
+ruby --version    # ruby 3.4.9
+node --version    # v22.x
 ```
 
 ## Next steps
 
 - [Installation](installation.md) — clone the repo and install dependencies
-- [Quick start](quick-start.md) — run both services and verify the app works
+- [Quick start](quick-start.md) — run all services and verify the app works

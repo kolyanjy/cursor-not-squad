@@ -1,146 +1,76 @@
 # MVP roadmap
 
-This roadmap defines phases from zero to a shippable **TonightPick** frontend MVP. Backend integration is contract-first; the frontend can ship independently using mock mode.
+This roadmap tracks Cursor Meetup from an empty repo to a working full-stack slice, and lists grounded next steps. The stack is a **Rails 8.1 API** + **React 19 (Vite)** frontend, orchestrated with Docker Compose.
 
 ---
 
 ## Phase overview
 
-| Phase | Goal | Exit criteria |
-|-------|------|---------------|
-| **0 — Foundation** | Project scaffold and design tokens | Vite + React + TS + Tailwind running; theme tokens documented |
-| **1 — Home** | Event creation entry point | `/` with title input, mood chips, Start CTA |
-| **2 — Swipe** | Core interaction loop | `/event/:id/swipe` with card UI and three actions |
-| **3 — Results** | Consensus view | `/event/:id/results` with liked list and Pick winner |
-| **4 — API & mock** | Data layer | Typed client, `VITE_USE_MOCK`, env-based base URL |
-| **5 — Polish** | Production-feel UX | Animations, reroll limits, safe areas, desktop max-width |
+| Phase | Goal | Status |
+|-------|------|--------|
+| **0 — Tooling** | Docker Compose + Makefile orchestration | ✅ Done |
+| **1 — Backend scaffold** | Rails 8.1 API app, Postgres/SQLite config | ✅ Done |
+| **2 — Domain** | `Category`/`Activity` models, migrations, seeds | ✅ Done |
+| **3 — API** | `GET /up`, `GET /activities/random` | ✅ Done |
+| **4 — Frontend shell** | Vite + React + Tailwind landing page, `ui/` primitives | ✅ Done |
+| **5 — Wire-up** | Frontend consumes the activities API end-to-end | ⬜ Next |
+| **6 — Polish & deploy** | Tests, CI, production deploy (Kamal) | ⬜ Future |
 
 ---
 
-## Phase 0 — Foundation
+## Phase 0 — Tooling ✅
 
-**Deliverables**
+- [x] `docker-compose.yml`: `db` (Postgres 16), `backend` (Rails), `frontend` (Vite)
+- [x] `Makefile`: `setup`, `up`, `down`, `logs`, `db-prepare`, `db-seed`, shells
+- [x] `scripts/docker-ready.sh` auto-starts Docker Desktop on macOS
 
-- [ ] Vite + React 19 + TypeScript + Tailwind CSS 4
-- [ ] `react-router-dom` with three route shells
-- [ ] Folder structure: `pages/`, `components/`, `api/`, `types/`, `hooks/`
-- [ ] Design tokens: background `#0a0a0f`, card slate-900/800, accent `#4FD1C5`
-- [ ] App shell: max-width ~430 px centered, dark gradient background
+## Phase 1 — Backend scaffold ✅
 
-**Dependencies:** None.
+- [x] Rails 8.1 API-only app (`config.api_only = true`)
+- [x] `config/database.yml`: PostgreSQL when `DB_HOST` set, SQLite fallback otherwise
+- [x] Puma, Solid Queue/Cache/Cable, RSpec
 
----
+## Phase 2 — Domain ✅
 
-## Phase 1 — Home (`/`)
+- [x] `Category(name, slug unique)` and `Activity(title, description, category_id)`
+- [x] Migrations + `schema.rb`
+- [x] `db/seeds.rb`: 8 categories × ~15 activities, idempotent
 
-**Deliverables**
+## Phase 3 — API ✅
 
-- [ ] Event title text input
-- [ ] Mood chip selector (optional, multi or single — align with API `mood?`)
-- [ ] Primary **Start** CTA (teal, full-width or prominent)
-- [ ] On submit: `POST /events` → navigate to `/event/:id/swipe`
+- [x] `GET /up` — Rails health check
+- [x] `GET /activities/random?category_slug=` — random activity, optional category filter
+- [x] 404 handling for unknown category / empty result
 
-**Acceptance**
+## Phase 4 — Frontend shell ✅
 
-- Empty title blocked or validated before submit.
-- Loading and error states on create event.
-
----
-
-## Phase 2 — Swipe (`/event/:id/swipe`)
-
-**Deliverables**
-
-- [ ] Fetch next activity: `GET /events/:id/next`
-- [ ] Card layout per [UI spec](../design/ui-spec.md):
-  - Header: `TONIGHT MATCH` badge + reroll counter
-  - Body: title, description, tag pills (tags + budget + duration)
-  - Footer: weather boost (conditional) + score
-- [ ] Fixed bottom action bar:
-  - **Nope** → `POST .../swipe` with `action: "pass"`
-  - **Tonight** → `POST .../swipe` with `action: "like"`, then next card
-  - **Again** → `GET .../next` without swipe; decrement rerolls (default 3, disable at 0)
-- [ ] Card fade/slide animation on next activity
-
-**Acceptance**
-
-- Touch targets ≥ 48 px; Tonight button largest (center).
-- Reroll counter persists for the session (client state unless API adds rerolls later).
+- [x] Vite + React 19 + TypeScript + Tailwind 4
+- [x] `HomePage` landing page (nebula shader, glass card, header/footer)
+- [x] `ui/` primitives (button, card, badge), `cn()` helper
+- [x] `api/client.ts` fetch wrapper + `HealthStatus` component
+- [x] `/api` dev proxy in `vite.config.ts`
 
 ---
 
-## Phase 3 — Results (`/event/:id/results`)
+## Phase 5 — Wire-up (next)
 
-**Deliverables**
+- [ ] Reconcile the `/api` prefix between the proxy and Rails routes (add an `/api` scope **or** strip the prefix in the proxy)
+- [ ] Add a typed `getRandomActivity(categorySlug?)` to `src/api/client.ts`
+- [ ] Render activities + category picker in the UI (or mount `HealthStatus`, which is built but not yet placed on the page)
+- [ ] Loading / error states via the discriminated-union pattern
 
-- [ ] `GET /events/:id/liked` → list of liked activities
-- [ ] Compact card rows reusing activity metadata (title, tags, score)
-- [ ] **Pick winner** teal CTA (MVP: local selection or navigation — no extra API required unless extended)
-- [ ] Link or button back to swipe if list is empty
+## Phase 6 — Polish & deploy (future)
 
-**Acceptance**
-
-- Empty state when no likes yet.
-- Visual consistency with swipe screen (same dark theme and accent).
-
----
-
-## Phase 4 — API layer & mock mode
-
-**Deliverables**
-
-- [ ] `VITE_API_URL` (default `http://localhost:3001`)
-- [ ] `VITE_USE_MOCK=true` → in-memory sample activities matching reference screenshot
-- [ ] Typed `Activity` model and API functions in `src/api/`
-- [ ] Unified error handling and loading states
-
-**Mock sample (reference)**
-
-- Title: *"Grab bubble tea and walk 30min"*
-- Tags: Outdoor, `$`, ~45 min
-- `weatherBoost: true`, `score: 70–95`
-
----
-
-## Phase 5 — Polish & ship
-
-**Deliverables**
-
-- [ ] iPhone safe-area padding (`env(safe-area-inset-*)`)
-- [ ] Smooth transitions (CSS or lightweight motion library if needed)
-- [ ] Accessibility: button labels, focus rings, semantic headings
-- [ ] Production build verified (`npm run build`)
-- [ ] README and docs cross-linked
-
----
-
-## Post-MVP (future)
-
-| Initiative | Description |
-|------------|-------------|
-| **Live backend** | FastAPI/Node service implementing full event + swipe persistence |
-| **Group sync** | Shared event room; aggregate likes across participants |
-| **Smart ranking** | Score, weather boost, and mood-aware recommendations |
-| **Location & time** | Geo-filtered activities, “open now” signals |
-| **Share link** | Invite others to swipe the same event |
-
----
-
-## Timeline suggestion
-
-| Week | Focus |
-|------|--------|
-| 1 | Phases 0–1 (scaffold + Home) |
-| 2 | Phase 2 (Swipe — highest complexity) |
-| 3 | Phases 3–4 (Results + API/mock) |
-| 4 | Phase 5 (polish, QA on real devices) |
-
-Adjust based on team size; Swipe UI is the critical path.
+- [ ] Request specs for `ActivitiesController`; component tests
+- [ ] CI: RuboCop, Brakeman, bundler-audit, RSpec, frontend build/lint
+- [ ] Enable CORS (`rack-cors`) if the SPA is served cross-origin
+- [ ] Production deploy with Kamal; managed PostgreSQL
 
 ---
 
 ## Related documentation
 
 - [Product overview](overview.md)
-- [UI specification](../design/ui-spec.md)
+- [Architecture overview](../architecture/overview.md)
+- [Backend development](../development/backend.md)
 - [Frontend development](../development/frontend.md)

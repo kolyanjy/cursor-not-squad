@@ -1,6 +1,6 @@
 # Deployment overview
 
-This document outlines considerations for deploying Cursor Meetup to production. The project does not include deployment automation yet; use this as a starting checklist.
+This document outlines considerations for deploying Cursor Meetup to production: a **Rails 8.1 API** (Puma) plus a **static React build**. The repository ships dev-oriented Docker tooling; treat this as a starting checklist for production.
 
 ## Architecture in production
 
@@ -14,10 +14,15 @@ This document outlines considerations for deploying Cursor Meetup to production.
               ┌────────────┴────────────┐
               ▼                         ▼
      ┌─────────────────┐     ┌─────────────────┐
-     │  Static files   │     │  FastAPI        │
-     │  (frontend      │     │  (backend       │
-     │   build)        │     │   service)      │
-     └─────────────────┘     └─────────────────┘
+     │  Static files   │     │  Rails API      │
+     │  (frontend      │     │  (Puma,         │
+     │   dist/)        │     │   port 3000)    │
+     └─────────────────┘     └────────┬────────┘
+                                      │
+                                      ▼
+                             ┌─────────────────┐
+                             │  PostgreSQL     │
+                             └─────────────────┘
 ```
 
 ## Frontend
@@ -33,13 +38,13 @@ Output is written to `frontend/dist/`. Serve these static files from any static 
 
 ### API routing in production
 
-The Vite dev proxy does not exist in production. Configure your host to forward `/api` requests to the backend:
+The Vite dev proxy does not exist in production. Configure your host to forward `/api` requests to the Rails backend.
 
 **Nginx example**
 
 ```nginx
 location /api/ {
-    proxy_pass http://backend:8000;
+    proxy_pass http://backend:3000;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
 }
@@ -50,42 +55,57 @@ location / {
 }
 ```
 
+> Whether to keep or strip the `/api` prefix depends on how your Rails routes are mounted — the current routes (`/up`, `/activities/random`) live at the root. Align the proxy path with the routes (see [Backend development](../development/backend.md)).
+
 ## Backend
 
-Run with a production ASGI server:
+The backend image is built from `backend/Dockerfile` (production) and runs Puma. Within the container the default entrypoint runs `bin/rails server`.
 
 ```bash
 cd backend
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+RAILS_ENV=production bin/rails server -b 0.0.0.0 -p 3000
 ```
 
-For production workloads, consider [Gunicorn](https://gunicorn.org/) with Uvicorn workers or a managed container platform.
+For container deployments, [Kamal](https://kamal-deploy.org/) is bundled (`gem "kamal"`); [Thruster](https://github.com/basecamp/thruster) is available for HTTP asset caching/compression in front of Puma.
+
+### Database & migrations
+
+Run migrations as part of the release step:
+
+```bash
+RAILS_ENV=production bin/rails db:prepare
+```
+
+`config/database.yml` defaults the production database to SQLite in `storage/` (mounted as a persistent volume). Point it at managed PostgreSQL with `DATABASE_URL` or the `DB_*` variables — see [Environment variables](../development/environment-variables.md).
 
 ### Environment checklist
 
 | Variable | Production value |
-|----------|-----------------|
-| `DEBUG` | `false` |
-| `CORS_ORIGINS` | Your production frontend URL(s) |
-| `APP_NAME` | Your chosen application name |
+|----------|------------------|
+| `RAILS_ENV` | `production` |
+| `RAILS_MASTER_KEY` | Decryption key for `config/credentials.yml.enc` |
+| `DATABASE_URL` / `DB_*` | Managed database connection |
+| `RAILS_MAX_THREADS` | Tune to your DB connection pool |
 
 ## Health checks
 
-Use `GET /api/health` as a liveness/readiness probe for load balancers and orchestrators (Kubernetes, ECS, etc.).
+Use `GET /up` (Rails' built-in health controller) as a liveness/readiness probe for load balancers and orchestrators:
 
 ```bash
-curl -f http://backend:8000/api/health
+curl -f http://backend:3000/up
 ```
 
 ## Security checklist
 
-- [ ] `DEBUG` is disabled
-- [ ] CORS origins are restricted to known domains
-- [ ] HTTPS is enforced at the proxy layer
-- [ ] `.env` files are not included in deployment artifacts
-- [ ] Dependencies are pinned and regularly updated
+- [ ] `RAILS_ENV=production` and debug tooling disabled
+- [ ] `config/master.key` / `RAILS_MASTER_KEY` kept out of version control and artifacts
+- [ ] CORS restricted to known origins if the SPA is served cross-origin (enable `rack-cors` + `config/initializers/cors.rb`)
+- [ ] HTTPS enforced at the proxy layer; `config.force_ssl` considered
+- [ ] Gems audited (`bundler-audit`) and scanned (`brakeman`); dependencies pinned
+- [ ] Database credentials supplied via environment, not committed
 
 ## Related docs
 
 - [Environment variables](../development/environment-variables.md)
+- [Backend development](../development/backend.md)
 - [API reference](../api/reference.md)

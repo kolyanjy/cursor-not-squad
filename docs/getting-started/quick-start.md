@@ -1,79 +1,89 @@
 # Quick start
 
-Get TonightPick running locally in under five minutes.
+Get Cursor Meetup running locally in a few minutes. The fastest path is Docker.
 
 ---
 
 ## Prerequisites
 
-- **Node.js** 20 or later
-- **npm** 10 or later
-
-No backend is required if you use mock mode.
+- **Docker** with Compose v2 and **Make** (recommended), or
+- Native **Ruby 3.4.9** + **Node.js 22** (see [Prerequisites](prerequisites.md))
 
 ---
 
-## 1. Install dependencies
+## 1. Start everything (Docker)
+
+From the repository root:
 
 ```bash
-cd frontend
-npm install
+make setup     # first time: build, start, prepare + seed the database
 ```
 
-Add the router when implementing routes (if not yet installed):
+On later runs just use:
 
 ```bash
-npm install react-router-dom
+make up        # foreground
+# or
+make up-d      # background (detached)
 ```
 
----
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:3000 |
+| PostgreSQL | localhost:5433 |
 
-## 2. Configure environment
-
-Create `frontend/.env.local`:
-
-```env
-VITE_USE_MOCK=true
-VITE_API_URL=http://localhost:3001
-```
-
-See [Environment variables](../development/environment-variables.md) for details.
-
----
-
-## 3. Start the dev server
+Useful targets:
 
 ```bash
-npm run dev
+make logs         # follow logs from all services
+make db-seed      # re-run database seeds
+make shell-backend  # bash shell in the Rails container
+make down         # stop services
+make clean        # stop and remove volumes (resets the DB)
 ```
 
-Open **http://localhost:5173**
+Run `make help` to list every target.
 
 ---
 
-## 4. Verify the flow
-
-| Step | URL | Action |
-|------|-----|--------|
-| Home | `/` | Enter event title, tap **Start** |
-| Swipe | `/event/:id/swipe` | Nope / Tonight / Again on activity cards |
-| Results | `/event/:id/results` | View liked activities, **Pick winner** |
-
-With mock mode, sample activities include the reference card: *Grab bubble tea and walk 30min*.
-
----
-
-## Production build
+## 2. Verify the API
 
 ```bash
-npm run build
-npm run preview
+# health check
+curl -i http://localhost:3000/up
+
+# random activity (optionally filtered by category)
+curl "http://localhost:3000/activities/random?category_slug=creative"
 ```
+
+Available category slugs: `outdoor`, `creative`, `social`, `fitness`, `cooking`, `learning`, `relaxation`, `adventure`.
+
+---
+
+## 3. Open the app
+
+Visit **http://localhost:5173** — the Cursor Meetup landing page. API calls from the frontend go through the Vite `/api` proxy to the backend. (A reusable `HealthStatus` component exists in `src/components/` but is not yet mounted on the page — see the [MVP roadmap](../product/mvp-roadmap.md).)
+
+---
+
+## Native (no Docker)
+
+```bash
+# terminal 1 — backend
+cd backend && bundle install && bin/rails db:prepare && bin/rails server -p 3000
+
+# terminal 2 — frontend
+cd frontend && npm install && npm run dev
+```
+
+See [Installation](installation.md) for details.
 
 ---
 
 ## Next steps
 
-- [UI specification](../design/ui-spec.md) — pixel-level design targets
-- [MVP roadmap](../product/mvp-roadmap.md) — implementation phases
-- [Frontend development](../development/frontend.md) — code conventions
+- [Architecture overview](../architecture/overview.md) — how the services fit together
+- [Backend development](../development/backend.md) — Rails conventions and adding endpoints
+- [Frontend development](../development/frontend.md) — React/Vite conventions
+- [API reference](../api/reference.md) — endpoints and schemas

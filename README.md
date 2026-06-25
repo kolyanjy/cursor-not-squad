@@ -1,6 +1,6 @@
-# TonightPick
+# Cursor Meetup
 
-Mobile-first web app for deciding **what to do tonight**. Create an event, swipe through activity cards, and pick a winner from the options you loved.
+A dockerized full-stack starter: a **Ruby on Rails 8.1 API** and a **React 19 + Vite** frontend, over a simple `Category → Activity` sample domain. One command brings up PostgreSQL, the API, and the web app.
 
 ---
 
@@ -10,47 +10,55 @@ Full documentation lives in [`docs/`](docs/README.md):
 
 | Section | Link |
 |---------|------|
-| Product overview | [docs/product/overview.md](docs/product/overview.md) |
-| MVP roadmap | [docs/product/mvp-roadmap.md](docs/product/mvp-roadmap.md) |
-| UI specification | [docs/design/ui-spec.md](docs/design/ui-spec.md) |
+| Quick start | [docs/getting-started/quick-start.md](docs/getting-started/quick-start.md) |
 | Architecture | [docs/architecture/overview.md](docs/architecture/overview.md) |
 | API reference | [docs/api/reference.md](docs/api/reference.md) |
+| Backend guide | [docs/development/backend.md](docs/development/backend.md) |
 | Frontend guide | [docs/development/frontend.md](docs/development/frontend.md) |
+| Deployment | [docs/deployment/overview.md](docs/deployment/overview.md) |
 
 ---
 
-## Quick start
+## Quick start (Docker)
 
-**Frontend** (port 5173):
+From the repository root:
 
 ```bash
-cd frontend
-npm install
-npm run dev
+make setup     # first run: build, start, prepare + seed the database
+# or
+make up        # start db + backend + frontend
 ```
 
-**Mock mode** — create `frontend/.env.local`:
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:3000 |
+| PostgreSQL | localhost:5433 |
 
-```env
-VITE_USE_MOCK=true
-VITE_API_URL=http://localhost:3001
+Run `make help` to list every target.
+
+### Verify the API
+
+```bash
+curl -i http://localhost:3000/up
+curl "http://localhost:3000/activities/random?category_slug=outdoor"
 ```
-
-App: http://localhost:5173
-
----
-
-## MVP scope
-
-- **In:** Home → Swipe → Results flow, dark mobile UI, API client + mock mode
-- **Out:** Auth, dashboard, real-time sync, native apps (post-MVP)
 
 ---
 
 ## Tech stack
 
 | Layer | Stack |
-|-------|--------|
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, react-router-dom |
-| API (contract) | REST on `VITE_API_URL` (default `:3001`) |
-| Icons | lucide-react |
+|-------|-------|
+| Backend | Ruby 3.4.9, Rails 8.1 (API-only), Puma, PostgreSQL 16 (SQLite fallback), RSpec |
+| Frontend | React 19, TypeScript, Vite 8, Tailwind CSS 4, lucide-react, three |
+| Tooling | Docker Compose, Makefile |
+
+---
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/up` | Rails health check |
+| `GET` | `/activities/random?category_slug=` | Random activity, optionally filtered by category |

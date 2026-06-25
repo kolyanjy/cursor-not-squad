@@ -1,218 +1,93 @@
 # UI specification
 
-TonightPick follows a **mobile-first**, dark-themed interface optimized for one-handed use. Desktop renders the same experience centered at ~430 px width — no separate dashboard layout.
+The Cursor Meetup frontend is a dark, glassmorphism-styled **landing page** built with React 19, Tailwind CSS 4, and shadcn-style primitives. This document describes the current UI and its design tokens.
 
 ---
 
-## Design principles
+## Design language
 
-1. **One decision at a time** — A single activity card dominates the swipe screen.
-2. **Thumb-zone actions** — Primary controls sit in a fixed bottom bar.
-3. **Scannable metadata** — Tags, budget, and duration as pills; score and weather as footer hints.
-4. **Confident typography** — Large display titles; muted secondary text for descriptions and meta.
-
----
-
-## Color system
-
-| Token | Value | Usage |
-|-------|-------|--------|
-| `bg-app` | `#0a0a0f` or `slate-950` | Page background with subtle gradient |
-| `bg-card` | `slate-900` / `slate-800` | Center activity card |
-| `accent-primary` | `#4FD1C5` / `teal-400` | Tonight button, TONIGHT MATCH border |
-| `text-primary` | `white` | Titles, primary labels |
-| `text-muted` | grey (`slate-400` range) | Descriptions, meta, reroll pill |
-| `action-nope` | red icon on dark circle | Pass action |
-| `action-again` | orange icon on dark circle | Reroll action |
+1. **Dark, deep background** — a near-black blue (oklch) base with an animated nebula/liquid shader.
+2. **Glassmorphism** — translucent surfaces with blur, subtle gradients, and soft glows.
+3. **Minimal chrome** — sticky header, centered hero, slim footer.
+4. **Token-driven** — colors are CSS custom properties (oklch) consumed through Tailwind theme classes.
 
 ---
 
-## Typography
+## Color tokens
 
-| Element | Style |
-|---------|--------|
-| Activity title | `font-black`, tight leading, large display size |
-| Description | Regular weight, muted white/grey, paragraph spacing below title |
-| Badges | Uppercase, small, tracking-wide (`TONIGHT MATCH`) |
-| Action labels | Small caption under circular buttons (Nope / Tonight / Again) |
+Defined as CSS variables in [`frontend/src/index.css`](../../frontend/src/index.css) and used via Tailwind (`bg-background`, `text-foreground`, `text-primary`, …).
 
----
+| Token | Value (oklch) | Usage |
+|-------|---------------|-------|
+| `--background` | `0.12 0.02 265` | Page background (deep blue-black) |
+| `--foreground` | `0.98 0.01 265` | Primary text |
+| `--card` | `0.16 0.02 265` | Card surface |
+| `--primary` | `0.72 0.14 230` | Accent (CTA, icon highlight, ring) |
+| `--muted-foreground` | `0.68 0.02 265` | Secondary text, nav links |
+| `--destructive` | `0.55 0.2 25` | Error states |
+| `--border` | `white / 12%` | Hairline borders |
+| `--radius` | `0.75rem` | Base corner radius |
 
-## Layout constraints
-
-| Rule | Value |
-|------|--------|
-| Max content width | ~430 px, horizontally centered on desktop |
-| Card radius | `rounded-3xl` (~32 px) |
-| Card height | Full viewport minus bottom action bar |
-| Min touch target | 48 × 48 px |
-| Tonight button | Largest circle in action row (center) |
-| Safe area | Padding for iPhone notch/home indicator |
+A `dark` custom variant is declared, and surfaces frequently use `white/5`–`white/25` overlays for the glass effect.
 
 ---
 
-## Screen: Home (`/`)
+## Layout
 
-**Purpose:** Create an event and enter the swipe flow.
+The page is a full-height flex column ([`HomePage.tsx`](../../frontend/src/components/HomePage.tsx)):
 
 ```
-┌─────────────────────────────┐
-│                             │
-│   [ Event title input ]     │
-│                             │
-│   Mood chips (optional)     │
-│   [ Chill ] [ Active ] ...  │
-│                             │
-│                             │
-│   ┌─────────────────────┐   │
-│   │       Start         │   │  ← teal primary CTA
-│   └─────────────────────┘   │
-│                             │
-└─────────────────────────────┘
+┌───────────────────────────────────────────────┐
+│  Header (sticky, blurred)                      │
+│  [▣ Cursor Meetup]   Features Stack Status     │
+│                          [Docs] [Get started →]│
+├───────────────────────────────────────────────┤
+│                                                │
+│              ╭───────────────╮                 │
+│              │  glass card    │   ← hero       │
+│              │  (nebula glow) │                 │
+│              ╰───────────────╯                 │
+│                                                │
+├───────────────────────────────────────────────┤
+│        UA Dev Team · Cursor Meetup 2026        │
+└───────────────────────────────────────────────┘
+        InteractiveNebulaShader (-z-10 background)
 ```
 
-| Element | Behavior |
-|---------|----------|
-| Title input | Required for meaningful events; placeholder e.g. “Friday crew” |
-| Mood chips | Optional; sent as `mood` on `POST /events` |
-| Start | Creates event, navigates to `/event/:id/swipe` |
-
-**Visual:** Minimal chrome — no nav bars, no tables. Same dark gradient as other screens.
+| Region | Details |
+|--------|---------|
+| **Background** | `InteractiveNebulaShader` (three.js) behind everything, plus a top-to-bottom background gradient overlay |
+| **Header** | Sticky, `backdrop-blur`, brand with `Terminal` icon, nav links (`Features`, `Stack`, `Status`), `Docs` ghost button, `Get started` primary button with `ArrowRight` |
+| **Hero** | Centered glass `Card` (~`w-64`–`w-72`, `h-[min(70vh,32rem)]`) with gradient borders and a primary-colored blur glow |
+| **Footer** | Slim, blurred, centered credit line |
 
 ---
 
-## Screen: Swipe (`/event/:id/swipe`)
-
-**Purpose:** Review and decide on activities one card at a time.
-
-### Card structure
-
-```
-┌─────────────────────────────┐
-│ TONIGHT MATCH    3 rerolls  │  ← header badges
-├─────────────────────────────┤
-│                             │
-│  Grab bubble tea and        │  ← activity.title (huge bold)
-│  walk 30min                 │
-│                             │
-│  Description paragraph...   │  ← activity.description (muted)
-│                             │
-│  [Outdoor] [$] [~45 min]    │  ← tag pills row
-│                             │
-│                             │
-│ Weather boost    Score 82   │  ← footer (weather conditional)
-└─────────────────────────────┘
-
-┌─────────────────────────────┐
-│  (Nope)   (Tonight)  (Again)│  ← fixed bottom bar
-└─────────────────────────────┘
-```
-
-### Header badges
-
-| Badge | Position | Style | Content |
-|-------|----------|-------|---------|
-| Tonight Match | Left | Teal border + teal uppercase text | Static label |
-| Rerolls | Right | Grey pill | `{n} rerolls left` (default 3) |
-
-### Tag pills row
-
-Render in order:
-
-1. Each item in `activity.tags` (e.g. `Outdoor`)
-2. Budget pill: `free` → “free”, `low` → `$`, `medium` → `$$`
-3. Duration pill: prefix `~` if not present (e.g. `~45 min`)
-
-Pills: dark grey background, `rounded-full`, compact padding.
-
-### Card footer
-
-| Element | Condition | Content |
-|---------|-----------|---------|
-| Weather boost | `activity.weatherBoost === true` | “Weather boost active” (left) |
-| Score | Always | “Score {activity.score}” (right); mock 70–95 if missing |
-
-### Bottom action bar
-
-Fixed to viewport bottom, safe-area aware.
-
-| Button | Size | Icon | Action |
-|--------|------|------|--------|
-| Nope | Small circle | Red X | `POST /events/:id/swipe` `{ action: "pass" }` |
-| Tonight | **Large** circle | Heart, solid teal fill | `POST .../swipe` `{ action: "like" }` → next card |
-| Again | Small circle | Orange refresh | `GET /events/:id/next` only; decrement rerolls; disabled at 0 |
-
-**Animation:** On next activity, card fades/slides out and new card enters (direction optional; prefer subtle horizontal slide + opacity).
-
----
-
-## Screen: Results (`/event/:id/results`)
-
-**Purpose:** Show all liked activities and finalize a winner.
-
-```
-┌─────────────────────────────┐
-│  Liked tonight              │
-│                             │
-│  ┌─────────────────────┐    │
-│  │ Activity card 1     │    │
-│  └─────────────────────┘    │
-│  ┌─────────────────────┐    │
-│  │ Activity card 2     │    │
-│  └─────────────────────┘    │
-│                             │
-│  ┌─────────────────────┐    │
-│  │    Pick winner      │    │  ← teal CTA
-│  └─────────────────────┘    │
-└─────────────────────────────┘
-```
-
-| State | UI |
-|-------|-----|
-| Has likes | Scrollable list of compact activity cards |
-| No likes | Empty state + CTA to return to swipe |
-| Pick winner | Teal button; MVP may highlight selection locally |
-
----
-
-## Component inventory (recommended)
+## Components
 
 | Component | Responsibility |
 |-----------|----------------|
-| `AppShell` | Max-width container, gradient bg, safe areas |
-| `HomePage` | Title, moods, Start |
-| `SwipePage` | Card stack + action bar orchestration |
-| `ActivityCard` | Header, body, footer for one activity |
-| `TagPill` | Reusable pill for tags/budget/duration |
-| `SwipeActionBar` | Nope / Tonight / Again buttons |
-| `ResultsPage` | Liked list + Pick winner |
-| `Badge` | Tonight Match / reroll counter variants |
+| `HomePage` | Full landing layout (header, hero, footer, shader) |
+| `ui/button` | CVA-based button (variants: default, ghost; sizes) |
+| `ui/card` | Surface primitive used for the hero |
+| `ui/badge` | Status/label pill |
+| `ui/liquid-shader` | `InteractiveNebulaShader` three.js background |
+| `HealthStatus` | Async API status indicator (loading / success / error). Built and ready, but not currently mounted in `HomePage` |
+
+Primitives follow the shadcn "new-york" style (`components.json`); icons come from `lucide-react`.
 
 ---
 
-## Icons
+## Conventions
 
-Use **lucide-react** (already in stack) or equivalent:
-
-| Action | Icon suggestion |
-|--------|-----------------|
-| Nope | `X` (red) |
-| Tonight | `Heart` (white on teal) |
-| Again | `RefreshCw` (orange) |
-
----
-
-## Accessibility
-
-- All action buttons have visible text labels below icons.
-- Focus visible on keyboard navigation (desktop QA).
-- Card title as heading (`h1` or `h2` per page).
-- Disabled Again button when rerolls = 0 with clear visual state.
+- Compose conditional classes with `cn()` from [`@/lib/utils`](../../frontend/src/lib/utils.ts).
+- Prefer theme tokens (`bg-background`, `text-muted-foreground`) over hardcoded colors.
+- Decorative layers use `aria-hidden` and `pointer-events-none`.
 
 ---
 
 ## Related documentation
 
-- [Product overview](../product/overview.md)
 - [Frontend development](../development/frontend.md)
-- [API reference](../api/reference.md)
+- [Product overview](../product/overview.md)
+- [Architecture overview](../architecture/overview.md)

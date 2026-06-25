@@ -1,31 +1,43 @@
 # Frontend development
 
-The TonightPick frontend is a **mobile-first React SPA** built with Vite, TypeScript, and Tailwind CSS. It lives in the `frontend/` directory.
+The frontend is a **React 19 + Vite** single-page app written in TypeScript and styled with Tailwind CSS 4. It lives in `frontend/` and currently renders a landing page ("Cursor Meetup") with a live API health indicator.
 
 ---
 
 ## Tech stack
 
-| Layer | Technology | Version (target) |
-|-------|------------|------------------|
+| Layer | Technology | Version |
+|-------|------------|---------|
 | Runtime | React | 19.x |
 | Build | Vite | 8.x |
-| Language | TypeScript | 6.x |
-| Styling | Tailwind CSS | 4.x |
-| Routing | react-router-dom | 7.x (to add) |
+| Language | TypeScript | ~6.x |
+| Styling | Tailwind CSS | 4.x (`@tailwindcss/vite`) |
+| UI primitives | shadcn-style components (Radix Slot, CVA) | — |
 | Icons | lucide-react | 1.x |
-| HTTP | Native `fetch` | — |
+| 3D / shader | three | 0.184 (nebula background) |
+| Lint | oxlint | 1.x |
+| HTTP | native `fetch` | — |
+
+> There is **no `react-router-dom`** and **no mock layer** in the project today — `App.tsx` renders `HomePage` directly.
 
 ---
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22 (matches `frontend/Dockerfile.dev`)
 - npm 10+
 
 ---
 
 ## Running locally
+
+Via Docker (with the backend) from the repo root:
+
+```bash
+make up
+```
+
+Or the frontend alone:
 
 ```bash
 cd frontend
@@ -35,24 +47,13 @@ npm run dev
 
 App: **http://localhost:5173**
 
-### Mock mode (no backend)
+The dev server proxies `/api` to the backend. Override the target with `VITE_API_PROXY_TARGET` (defaults to `http://localhost:3000`):
 
 ```bash
-# .env.local
-VITE_USE_MOCK=true
-VITE_API_URL=http://localhost:3001
+VITE_API_PROXY_TARGET=http://localhost:3000 npm run dev
 ```
 
-With mock enabled, all API calls are handled in `src/api/mock.ts`.
-
-### With backend
-
-```bash
-VITE_USE_MOCK=false
-VITE_API_URL=http://localhost:3001
-```
-
-Ensure the API server implements the [API reference](../api/reference.md).
+See [Environment variables](environment-variables.md).
 
 ---
 
@@ -61,130 +62,102 @@ Ensure the API server implements the [API reference](../api/reference.md).
 | Script | Command | Description |
 |--------|---------|-------------|
 | `dev` | `npm run dev` | Dev server + HMR |
-| `build` | `npm run build` | Typecheck + production bundle → `dist/` |
-| `preview` | `npm run preview` | Serve production build locally |
+| `build` | `npm run build` | `tsc -b` typecheck + production bundle → `dist/` |
+| `preview` | `npm run preview` | Serve the production build locally |
 | `lint` | `npm run lint` | Oxlint |
 
 ---
 
-## Project conventions
+## Project structure
 
-### File organization
-
-- **`pages/`** — One file per route; orchestrate data + navigation.
-- **`components/`** — Reusable UI; group by feature (`swipe/`, `layout/`).
-- **`api/`** — All HTTP and mock logic; pages never call `fetch` directly.
-- **`types/`** — Shared interfaces (`Activity`, etc.).
-- **`hooks/`** — Reusable stateful logic (`useRerolls`).
-
-### Imports
-
-Use the `@/` path alias (configure in `vite.config.ts` and `tsconfig.json`):
-
-```typescript
-import { ActivityCard } from '@/components/swipe/ActivityCard'
-import type { Activity } from '@/types/activity'
 ```
-
-Keep imports at the top of each module (no inline imports).
-
-### TypeScript
-
-- Discriminated unions for async state: `loading | success | error`.
-- Exhaustive `switch` with `never` in default for union types.
-
-### Styling
-
-- Tailwind utility classes in JSX.
-- Design tokens documented in [UI specification](../design/ui-spec.md).
-- App shell enforces `max-w-[430px] mx-auto` and safe-area padding:
-
-```css
-padding-bottom: env(safe-area-inset-bottom);
-padding-top: env(safe-area-inset-top);
+frontend/src/
+├── main.tsx                 # React entry
+├── App.tsx                  # renders <HomePage />
+├── index.css                # Tailwind import + design tokens (oklch CSS vars)
+├── api/
+│   └── client.ts            # fetch wrapper, prefixes /api
+├── components/
+│   ├── HomePage.tsx         # landing page
+│   ├── HealthStatus.tsx     # async loading | success | error indicator
+│   └── ui/                  # button, card, badge, liquid-shader (shadcn-style)
+├── lib/
+│   └── utils.ts             # cn() — clsx + tailwind-merge
+└── assets/
 ```
 
 ---
 
-## Routing setup
+## Conventions
+
+### Path alias
+
+Use the `@/` alias (configured in `vite.config.ts` and `tsconfig.app.json`):
 
 ```typescript
-// App.tsx (target)
-<Routes>
-  <Route path="/" element={<HomePage />} />
-  <Route path="/event/:id/swipe" element={<SwipePage />} />
-  <Route path="/event/:id/results" element={<ResultsPage />} />
-</Routes>
+import { Button } from '@/components/ui/button'
+import { fetchHealth } from '@/api/client'
+import { cn } from '@/lib/utils'
 ```
 
-Install router when implementing:
+Keep imports at the top of each module.
 
-```bash
-npm install react-router-dom
+### Styling
+
+- Tailwind utility classes in JSX.
+- Design tokens are CSS custom properties (oklch) defined in `src/index.css` and referenced through Tailwind theme colors (`bg-background`, `text-muted-foreground`, `text-primary`, …).
+- Compose conditional classes with the `cn()` helper from `@/lib/utils`.
+- UI primitives follow shadcn ("new-york" style); add more with the shadcn CLI per `components.json`.
+
+### TypeScript
+
+- Strict mode is on.
+- Model async UI state as a discriminated union and handle it exhaustively (with a `never` check in the default branch). `HealthStatus.tsx` is the reference example:
+
+```typescript
+type LoadState =
+  | { kind: 'loading' }
+  | { kind: 'success'; data: HealthResponse }
+  | { kind: 'error'; message: string }
 ```
 
 ---
 
 ## API client pattern
 
-```typescript
-// src/api/client.ts
-const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
-const useMock = import.meta.env.VITE_USE_MOCK === 'true'
+All network calls go through [`src/api/client.ts`](../../frontend/src/api/client.ts), which prefixes requests with `/api` so they hit the Vite proxy:
 
-export async function getNextActivity(eventId: string) {
-  if (useMock) return mockGetNext(eventId)
-  const res = await fetch(`${baseUrl}/events/${eventId}/next`)
-  if (!res.ok) throw new ApiError(res.status)
-  return res.json() as Promise<{ activity: Activity }>
+```typescript
+const API_BASE = '/api'
+
+async function request<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`)
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`)
+  return response.json() as Promise<T>
+}
+
+export function fetchHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>('/health')
 }
 ```
 
-Centralize error types and JSON parsing in one module.
-
----
-
-## Swipe page implementation notes
-
-1. **Load** — On mount, `GET /events/:id/next`.
-2. **Nope** — `POST swipe` with `pass`, then fetch next.
-3. **Tonight** — `POST swipe` with `like`, then fetch next.
-4. **Again** — Only `GET next`; decrement rerolls; disable at 0.
-5. **Animate** — Toggle a key on `activity.id` to trigger enter/exit CSS transitions.
-
-Reroll count is **client-side** for MVP (default 3). Server-authoritative rerolls can be added later.
-
----
-
-## Results page
-
-- Fetch `GET /events/:id/liked` on mount.
-- Reuse `ActivityCard` in compact/list variant or a slim `LikedActivityRow`.
-- **Pick winner** — MVP: highlight selected card or show confirmation modal; no extra API required unless product adds `POST /events/:id/winner`.
-
----
-
-## Desktop behavior
-
-Same mobile layout centered on wide viewports. No responsive dashboard or multi-column layout.
+> **Path note:** the Vite proxy forwards `/api/*` to the backend without stripping `/api`, and the current Rails routes (`/up`, `/activities/random`) are mounted at the root. So `fetchHealth()` (`/api/health`) does not map to an existing route as-is. When wiring real calls, align the two — add an `/api` scope in `config/routes.rb`, or rewrite the proxy path in `vite.config.ts`. Add typed functions here before using them in components. See [API reference](../api/reference.md).
 
 ---
 
 ## Quality checklist
 
-- [ ] Touch targets ≥ 48 px on all three swipe buttons
-- [ ] Tonight button visibly larger than Nope / Again
-- [ ] Card animation on activity change
-- [ ] Weather boost hidden when `weatherBoost !== true`
-- [ ] Budget pills map correctly (`free` / `$` / `$$`)
-- [ ] iPhone safe areas on bottom action bar
-- [ ] `npm run build` passes without type errors
+- [ ] `npm run build` passes (typecheck + bundle) with no errors
+- [ ] `npm run lint` (oxlint) is clean
+- [ ] New API calls go through `src/api/client.ts` with explicit types
+- [ ] Async UI uses a discriminated union handled exhaustively
+- [ ] Classes composed with `cn()`; tokens used instead of hardcoded colors
 
 ---
 
 ## Related documentation
 
-- [UI specification](../design/ui-spec.md)
 - [API reference](../api/reference.md)
 - [Environment variables](environment-variables.md)
-- [MVP roadmap](../product/mvp-roadmap.md)
+- [Architecture overview](../architecture/overview.md)
+- [Backend development](backend.md)

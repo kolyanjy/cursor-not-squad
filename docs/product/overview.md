@@ -1,93 +1,74 @@
 # Product overview
 
-**TonightPick** is a mobile-first web app that helps small groups decide what to do tonight — fast. Users create a lightweight event, swipe through curated activity cards Tinder-style, and pick a winner from the options everyone liked.
+**Cursor Meetup** is a dockerized full-stack starter that pairs a **Ruby on Rails 8.1 API** with a **React 19 + Vite** frontend. It exists to demonstrate a clean, reproducible local setup and a minimal end-to-end slice — a sample "activities by category" domain — that teams can build on.
 
 ---
 
-## Problem statement
+## What it is
 
-Choosing a same-day activity with friends or a partner often devolves into endless back-and-forth: too many options, unclear preferences, and no structured way to converge on one plan before the evening slips away.
+- A **reference stack**: Rails API + React SPA + PostgreSQL, wired together with Docker Compose and a Makefile.
+- A **working vertical slice**: a `Category → Activity` data model, seed data, and a `GET /activities/random` endpoint.
+- A **branded landing page** ("Cursor Meetup") on the frontend, plus a reusable API health indicator component.
 
-TonightPick reduces **decision paralysis** by:
-
-1. **Constraining the choice set** — one card at a time, not an overwhelming list.
-2. **Making preference capture frictionless** — swipe Nope / Tonight / Again instead of typing opinions.
-3. **Surfacing consensus** — a short list of liked activities and a single “Pick winner” moment.
+It is intentionally small — a foundation to extend, not a finished product.
 
 ---
 
-## Target users
+## Goals
 
-| Persona | Description | Primary need |
-|---------|-------------|--------------|
-| **The Planner** | Organizes the group chat, picks a vibe, starts the session | “Give me something we can agree on in 5 minutes.” |
-| **The Participant** | Joins via link, swipes through options on their phone | “Show me good ideas without reading a wall of text.” |
-| **The Couple** | Two people deciding on a date night | “Something fun tonight that fits our mood and budget.” |
-
-**Context of use:** same evening, mobile phone in hand, 2–6 people, low patience for forms or dashboards.
-
----
-
-## Value proposition
-
-| For users | For the product |
-|-----------|-----------------|
-| Decide in minutes, not hours | Simple 3-screen flow: Home → Swipe → Results |
-| Express taste with gestures | Swipe actions map to clear intent (reject / accept / reroll) |
-| See only what matters | One activity card, score, tags, and weather boost — no tables or admin UI |
+| Goal | How it's met |
+|------|--------------|
+| **One-command setup** | `make setup` builds images, starts services, and seeds the database |
+| **Reproducible environments** | Pinned Ruby (3.4.9), Node (22), Postgres (16) in containers |
+| **Clear front/back separation** | API-only Rails backend; React SPA proxies `/api` |
+| **A real example to copy** | Models, controller, route, seeds, and a typed fetch client |
 
 ---
 
-## Core user journey
+## The sample domain
 
 ```
-Home                    Swipe                         Results
-┌──────────────┐       ┌──────────────┐              ┌──────────────┐
-│ Event title  │  ──►  │ Activity     │  ──►         │ Liked list   │
-│ Mood chips   │       │ card +       │              │ Pick winner  │
-│ [ Start ]    │       │ Nope/Tonight │              │              │
-└──────────────┘       └──────────────┘              └──────────────┘
+Category (e.g. "Outdoor")
+   └── many Activities (e.g. "Go for a hike", "Ride a bike")
 ```
 
-1. **Create event** — Enter a title (e.g. “Friday crew”) and optional mood.
-2. **Swipe** — Review activities one at a time; like, pass, or reroll (limited rerolls).
-3. **Results** — Review all “Tonight” picks and choose the final plan.
+Eight seeded categories — `outdoor`, `creative`, `social`, `fitness`, `cooking`, `learning`, `relaxation`, `adventure` — each with ~15 activities. The API can return a random activity overall or within one category.
+
+See [API reference](../api/reference.md) and [Architecture overview](../architecture/overview.md).
 
 ---
 
-## Scope boundaries (MVP)
+## Who it's for
 
-**In scope**
-
-- Mobile-first React UI matching the reference design (dark theme, teal accent).
-- Three routes: `/`, `/event/:id/swipe`, `/event/:id/results`.
-- API client against documented REST endpoints (or mock mode).
-- Card transitions, touch-friendly action bar, iPhone safe areas.
-
-**Out of scope (MVP)**
-
-- User accounts and authentication.
-- Real-time multi-device sync / WebSockets.
-- Admin dashboard, analytics, or data tables.
-- Native iOS/Android apps.
-- Activity recommendation engine (backend may return mock or static data initially).
+| Audience | Need |
+|----------|------|
+| **Developers starting a project** | A ready Rails+React skeleton without boilerplate setup |
+| **Meetup / workshop attendees** | A shared, runnable baseline to experiment from |
+| **Contributors** | Conventions and structure to extend the API and UI |
 
 ---
 
-## Success metrics (MVP)
+## Scope
 
-| Metric | Target | Rationale |
-|--------|--------|-----------|
-| Time to first swipe | < 30 s | Home screen must be minimal |
-| Swipes per session | ≥ 5 | Enough signal to reach Results |
-| Touch target compliance | 100% ≥ 48 px | Mobile usability baseline |
-| Visual parity with design | High | Primary deliverable for frontend MVP |
+**In scope (today)**
+
+- Rails 8.1 API-only backend with PostgreSQL (SQLite fallback for native dev).
+- `Category`/`Activity` models, seeds, `GET /up` and `GET /activities/random`.
+- React 19 + Vite + Tailwind 4 landing page and `ui/` primitives.
+- Docker Compose + Makefile orchestration.
+
+**Not in scope (yet)**
+
+- Authentication / user accounts.
+- Full CRUD UI for activities/categories.
+- The frontend consuming the activities endpoint end-to-end (the landing page is currently static; `client.ts` only defines a health call).
+- Production deploy automation (Kamal is available but not configured).
 
 ---
 
 ## Related documentation
 
 - [MVP roadmap](mvp-roadmap.md)
-- [UI specification](../design/ui-spec.md)
 - [Architecture overview](../architecture/overview.md)
 - [API reference](../api/reference.md)
+- [UI specification](../design/ui-spec.md)

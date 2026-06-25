@@ -1,9 +1,11 @@
 # API reference
 
-TonightPick exposes a small REST API for event lifecycle and swipe actions. The frontend MVP consumes these endpoints via `VITE_API_URL` or simulates them in mock mode.
+The backend is a **Ruby on Rails 8.1 API-only** app. It exposes a health probe and a sample endpoint that returns a random activity, optionally filtered by category.
 
-**Base URL (development):** `http://localhost:3001`  
+**Base URL (development):** `http://localhost:3000`
 **Content-Type:** `application/json`
+
+> The frontend reaches the API through the Vite dev proxy at `/api` (see [Architecture overview](../architecture/overview.md)). The proxy target is configurable via `VITE_API_PROXY_TARGET`.
 
 ---
 
@@ -11,259 +13,127 @@ TonightPick exposes a small REST API for event lifecycle and swipe actions. The 
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/events` | Create a new event |
-| `GET` | `/events/:id/next` | Get the next activity to swipe |
-| `POST` | `/events/:id/swipe` | Record a like or pass |
-| `GET` | `/events/:id/liked` | List all liked activities for an event |
+| `GET` | `/up` | Rails health check (200 if the app boots, 500 otherwise) |
+| `GET` | `/activities/random` | Return a random activity, optionally filtered by `category_slug` |
+
+Defined in [`backend/config/routes.rb`](../../backend/config/routes.rb).
 
 ---
 
 ## Data models
 
+The sample domain has two Active Record models.
+
+### Category
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | integer | Primary key |
+| `name` | string | Required |
+| `slug` | string | Required, unique |
+
 ### Activity
 
-```typescript
-interface Activity {
-  id: string
-  title: string
-  description: string
-  emoji?: string
-  tags: string[]
-  budget: 'free' | 'low' | 'medium'
-  duration: string        // e.g. "45 min"
-  score?: number          // 70–95 typical; shown in UI
-  weatherBoost?: boolean    // if true, show "Weather boost active"
-}
-```
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | integer | Primary key |
+| `title` | string | Required |
+| `description` | text | Optional |
+| `category_id` | integer | Belongs to `Category` |
 
-### Budget display mapping (frontend)
-
-| API value | UI pill |
-|-----------|---------|
-| `free` | `free` |
-| `low` | `$` |
-| `medium` | `$$` |
+Seeded categories (`db/seeds.rb`): `outdoor`, `creative`, `social`, `fitness`, `cooking`, `learning`, `relaxation`, `adventure`.
 
 ---
 
 ## Endpoints
 
-### Create event
+### Health check
 
-`POST /events`
+`GET /up`
 
-Creates an event session and returns its identifier.
+Returns HTTP `200` with an HTML page if the application boots without raising, otherwise `500`. Intended for load balancers and uptime monitors.
 
-**Request body**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `title` | `string` | Yes | Event name (e.g. “Friday crew”) |
-| `mood` | `string` | No | Selected mood chip value |
-
-**Example request**
-
-```json
-{
-  "title": "Friday crew",
-  "mood": "chill"
-}
-```
-
-**Response** `201 Created`
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | Event UUID or opaque ID |
-
-```json
-{
-  "id": "evt_8f3k2m9x"
-}
-```
-
-**Frontend usage**
-
-```typescript
-const { id } = await createEvent({ title: 'Friday crew', mood: 'chill' })
-navigate(`/event/${id}/swipe`)
+```bash
+curl -i http://localhost:3000/up
 ```
 
 ---
 
-### Get next activity
+### Random activity
 
-`GET /events/:id/next`
+`GET /activities/random`
 
-Returns the next activity card for swiping. Used on initial swipe load and on **Again** (reroll without recording pass/like).
+Returns a single random activity. If `category_slug` is supplied, the activity is drawn from that category only.
 
-**Path parameters**
+**Query parameters**
 
-| Name | Description |
-|------|-------------|
-| `id` | Event ID from create event |
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `category_slug` | string | No | Restrict the pick to one category (e.g. `outdoor`) |
+
+**Example request**
+
+```bash
+curl "http://localhost:3000/activities/random?category_slug=outdoor"
+```
 
 **Response** `200 OK`
 
 ```json
 {
-  "activity": {
-    "id": "act_bubble_tea_walk",
-    "title": "Grab bubble tea and walk 30min",
-    "description": "Pick up drinks nearby, then stroll the waterfront trail while the weather holds.",
-    "emoji": "🧋",
-    "tags": ["Outdoor"],
-    "budget": "low",
-    "duration": "45 min",
-    "score": 82,
-    "weatherBoost": true
+  "id": 12,
+  "title": "Go for a hike",
+  "description": "Find a nearby trail and explore nature for an hour.",
+  "category": {
+    "id": 1,
+    "name": "Outdoor",
+    "slug": "outdoor"
   }
 }
 ```
 
 **Errors**
 
-| Status | When |
-|--------|------|
-| `404` | Event not found |
-| `204` or empty | No more activities (frontend should navigate to Results or show end state) |
+| Status | Body | When |
+|--------|------|------|
+| `404` | `{ "error": "Category not found" }` | `category_slug` provided but no such category |
+| `404` | `{ "error": "No activities found" }` | No activities match (e.g. empty database — run `make db-seed`) |
+
+The handler lives in [`backend/app/controllers/activities_controller.rb`](../../backend/app/controllers/activities_controller.rb) and uses the `Activity.random_for_category` scope.
 
 ---
 
-### Record swipe
+## Frontend client
 
-`POST /events/:id/swipe`
-
-Persists a user decision for the current activity.
-
-**Path parameters**
-
-| Name | Description |
-|------|-------------|
-| `id` | Event ID |
-
-**Request body**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `activityId` | `string` | Yes | ID of the activity being swiped |
-| `action` | `"like" \| "pass"` | Yes | `like` = Tonight; `pass` = Nope |
-
-**Example — Tonight (like)**
-
-```json
-{
-  "activityId": "act_bubble_tea_walk",
-  "action": "like"
-}
-```
-
-**Example — Nope (pass)**
-
-```json
-{
-  "activityId": "act_bubble_tea_walk",
-  "action": "pass"
-}
-```
-
-**Response** `200 OK`
-
-```json
-{
-  "ok": true
-}
-```
-
-**Notes**
-
-- **Again** does **not** call this endpoint; it only calls `GET .../next`.
-- After a successful like or pass, the frontend fetches the next activity (or relies on a follow-up `GET .../next`).
-
----
-
-### Get liked activities
-
-`GET /events/:id/liked`
-
-Returns all activities the user marked as Tonight (liked) for this event.
-
-**Path parameters**
-
-| Name | Description |
-|------|-------------|
-| `id` | Event ID |
-
-**Response** `200 OK`
-
-```json
-{
-  "activities": [
-    {
-      "id": "act_bubble_tea_walk",
-      "title": "Grab bubble tea and walk 30min",
-      "description": "Pick up drinks nearby, then stroll the waterfront trail.",
-      "tags": ["Outdoor"],
-      "budget": "low",
-      "duration": "45 min",
-      "score": 82,
-      "weatherBoost": true
-    }
-  ]
-}
-```
-
----
-
-## Mock mode
-
-When `VITE_USE_MOCK=true`, the frontend implements the same function signatures without network I/O:
-
-| Behavior | Mock implementation |
-|----------|---------------------|
-| Create event | Generate random `id`, store empty session |
-| Next activity | Rotate through sample activities; include reference screenshot activity |
-| Swipe | Append to liked list if `like`; ignore if `pass` |
-| Liked | Return in-memory liked array for event |
-
-Sample mock activity should match the design reference:
-
-- **Title:** Grab bubble tea and walk 30min  
-- **Tags:** Outdoor, `$`, ~45 min  
-- **weatherBoost:** `true`  
-- **score:** 82 (or random 70–95)
-
----
-
-## Error handling
-
-| Status | Meaning | Frontend action |
-|--------|---------|-----------------|
-| `400` | Invalid body | Show inline error |
-| `404` | Unknown event | Redirect to Home |
-| `422` | Validation error | Show field errors |
-| `5xx` | Server error | Retry CTA + toast |
-
----
-
-## TypeScript client (reference)
+The frontend talks to the API through a thin `fetch` wrapper in [`frontend/src/api/client.ts`](../../frontend/src/api/client.ts), which prefixes requests with `/api`:
 
 ```typescript
-export type SwipeAction = 'like' | 'pass'
+const API_BASE = '/api'
 
-export function createEvent(body: { title: string; mood?: string }): Promise<{ id: string }>
-export function getNextActivity(eventId: string): Promise<{ activity: Activity }>
-export function recordSwipe(
-  eventId: string,
-  body: { activityId: string; action: SwipeAction }
-): Promise<{ ok: boolean }>
-export function getLikedActivities(eventId: string): Promise<{ activities: Activity[] }>
+async function request<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`)
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`)
+  return response.json() as Promise<T>
+}
 ```
+
+> **Path note:** the Vite proxy forwards `/api/*` to the backend without stripping `/api`. The Rails routes above are mounted at the root, so when wiring a real call either add an `/api` scope in `config/routes.rb` or strip the prefix in the proxy `rewrite`. See [Backend development](../development/backend.md).
+
+---
+
+## Adding endpoints
+
+1. Add or update a controller in `backend/app/controllers/`.
+2. Declare the route in `backend/config/routes.rb`.
+3. Render JSON with `render json:` and set explicit status codes on errors.
+4. Document the endpoint here.
+
+See [Backend development](../development/backend.md) for the full workflow.
 
 ---
 
 ## Related documentation
 
 - [Architecture overview](../architecture/overview.md)
-- [UI specification](../design/ui-spec.md)
+- [Backend development](../development/backend.md)
 - [Environment variables](../development/environment-variables.md)
