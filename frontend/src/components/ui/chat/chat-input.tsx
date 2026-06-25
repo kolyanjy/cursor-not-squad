@@ -90,10 +90,6 @@ export function ChatInput({ onSend, onStop, busy, placeholder }: ChatInputProps)
           </button>
         )}
       </div>
-
-      <p className="mt-2 text-center text-[11px] text-muted-foreground/60">
-        TonightPick suggests — you swipe to decide.
-      </p>
     </form>
   )
 }

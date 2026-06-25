@@ -1,3 +1,7 @@
+import { MODEL, getAnthropic } from '@/api/anthropic'
+import { USE_MOCK } from '@/api/config'
+import { CONCIERGE_SYSTEM } from '@/api/prompts'
+
 export type ChatRole = 'user' | 'assistant'
 
 export interface ChatMessage {
@@ -5,9 +9,6 @@ export interface ChatMessage {
   role: ChatRole
   content: string
 }
-
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false'
-const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 export interface StreamReplyOptions {
   signal?: AbortSignal
@@ -18,8 +19,8 @@ export interface StreamReplyOptions {
  *
  * In mock mode (the default — the app ships without a backend) it fabricates a
  * contextual concierge reply with a realistic "thinking" pause followed by
- * token-by-token streaming. When a real backend is wired up
- * (`VITE_USE_MOCK=false`) it reads a streamed text response from `POST /chat`.
+ * token-by-token streaming. With `VITE_USE_MOCK=false` it streams a live reply
+ * from Claude, shaped by the {@link CONCIERGE_SYSTEM} pre-prompt.
  */
 export async function* streamAssistantReply(
   history: ChatMessage[],
@@ -30,7 +31,7 @@ export async function* streamAssistantReply(
     return
   }
 
-  yield* streamBackendReply(history, options.signal)
+  yield* streamClaudeReply(history, options.signal)
 }
 
 // --- Mock -------------------------------------------------------------------
@@ -131,37 +132,26 @@ async function* streamMockReply(
   }
 }
 
-// --- Backend (used when VITE_USE_MOCK=false) --------------------------------
+// --- Claude (used when VITE_USE_MOCK=false) ---------------------------------
 
-async function* streamBackendReply(
+async function* streamClaudeReply(
   history: ChatMessage[],
   signal?: AbortSignal,
 ): AsyncGenerator<string, void, unknown> {
-  const response = await fetch(`${API_BASE}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  const stream = getAnthropic().messages.stream(
+    {
+      model: MODEL,
+      max_tokens: 1024,
+      system: CONCIERGE_SYSTEM,
       messages: history.map(({ role, content }) => ({ role, content })),
-    }),
-    signal,
-  })
+    },
+    { signal },
+  )
 
-  if (!response.ok || !response.body) {
-    throw new Error(`Chat request failed: ${response.status}`)
-  }
-
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-
-  try {
-    while (true) {
-      const { value, done } = await reader.read()
-      if (done) break
-      const chunk = decoder.decode(value, { stream: true })
-      if (chunk) yield chunk
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      yield event.delta.text
     }
-  } finally {
-    reader.releaseLock()
   }
 }
 

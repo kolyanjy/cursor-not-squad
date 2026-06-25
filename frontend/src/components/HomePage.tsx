@@ -12,9 +12,11 @@ import { eveningActivities } from '@/data/activities'
 import { useChat } from '@/hooks/useChat'
 
 export function HomePage() {
-  const { messages, status, error, send, stop, reset } = useChat()
+  const { messages, status, error, activities, activitiesLoading, send, stop, reset } = useChat()
   const cardStackRef = useRef<SwipeableCardStackHandle>(null)
   const hasConversation = messages.length > 0
+  // Show the AI-generated deck once it exists; until then, the seed deck.
+  const deck = activities.length > 0 ? activities : eveningActivities
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">
@@ -69,12 +71,19 @@ export function HomePage() {
 
               <SwipeableCardStack
                 ref={cardStackRef}
-                items={eveningActivities}
+                items={deck}
                 borderRadius={20}
                 rightIcon={<Heart className="size-20 text-emerald-400 drop-shadow-lg" strokeWidth={1.5} />}
                 leftIcon={<X className="size-20 text-red-400 drop-shadow-lg" strokeWidth={1.5} />}
                 className="relative z-10"
               />
+
+              {activitiesLoading ? (
+                <div className="pointer-events-none absolute inset-x-0 -bottom-7 z-20 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <Sparkles className="size-3.5 animate-pulse text-primary" />
+                  Lining up tonight&apos;s picks…
+                </div>
+              ) : null}
             </div>
 
             <button
