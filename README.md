@@ -40,6 +40,12 @@ Three screens. Two minutes. One concrete plan.
 
 ---
 
+<div align="center">
+  <img src=".github/assets/screenshot.jpg" alt="TonightPick — home and swipe card" width="800" />
+</div>
+
+---
+
 ## Quick start
 
 ### Frontend only — no backend required
